@@ -1,22 +1,22 @@
-# Karl David — KAR Projects Hub
+﻿# Karl David â€” KAR Projects Hub
 
-Bienvenue sur **KAR Projects Hub**, le portfolio officiel de **Karl David**, créateur et développeur des projets de l'écosystème **KAR**.
+Bienvenue sur **KAR Projects Hub**, le portfolio officiel de **Karl David**, crÃ©ateur et dÃ©veloppeur des projets de l'Ã©cosystÃ¨me **KAR**.
 
-Ce dépôt centralise les projets, sites web, logiciels, outils et expérimentations développés par Karl David sous le nom KAR.
+Ce dÃ©pÃ´t centralise les projets, sites web, logiciels, outils et expÃ©rimentations dÃ©veloppÃ©s par Karl David sous le nom KAR.
 
 ## Karl David
 
-**Karl David** développe des projets autour du web, des logiciels, des outils informatiques, des interfaces modernes et des expérimentations technologiques.
+**Karl David** dÃ©veloppe des projets autour du web, des logiciels, des outils informatiques, des interfaces modernes et des expÃ©rimentations technologiques.
 
 GitHub :
-https://github.com/anormadaise2-ops
+https://github.com/KarlDavidLabs
 
 Portfolio :
-https://anormadaise2-ops.github.io/KAR-Projects-Hub/
+https://KarlDavidLabs.github.io/KAR-Projects-Hub/
 
 ## KAR Projects Hub
 
-Le **KAR Projects Hub** rassemble les différents projets publics de Karl David.
+Le **KAR Projects Hub** rassemble les diffÃ©rents projets publics de Karl David.
 
 ### Projets de Karl David
 
@@ -31,14 +31,14 @@ Le **KAR Projects Hub** rassemble les différents projets publics de Karl David.
 - robloxien
 - robloxienm
 
-## À propos
+## Ã€ propos
 
-**Créateur : Karl David**
+**CrÃ©ateur : Karl David**
 
 **Nom de projet : KAR**
 
 **Portfolio : KAR Projects Hub**
 
-**GitHub : anormadaise2-ops**
+**GitHub : KarlDavidLabs**
 
-Le projet KAR Projects Hub sert de portail central pour découvrir les créations et expérimentations de Karl David.
+Le projet KAR Projects Hub sert de portail central pour dÃ©couvrir les crÃ©ations et expÃ©rimentations de Karl David.

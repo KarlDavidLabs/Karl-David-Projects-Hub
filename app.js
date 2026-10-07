@@ -79,7 +79,7 @@
   // PROJECT DATA
   // ============================================================
 
-  const GH_USER = 'anormadaise2-ops';
+  const GH_USER = 'KarlDavidLabs';
 
   // KAR AI + KAR Vault exclus
   const EXCLUDED = new Set([
@@ -104,7 +104,7 @@
       name: 'KAR INSTALLER',
       status: 'LIVE',
       repo: 'KAR-Installer',
-      url: 'https://anormadaise2-ops.github.io/KAR-Installer/',
+      url: 'https://KarlDavidLabs.github.io/KAR-Installer/',
       description:
         'A modern installation platform. Guided, fast and clean — set up the KAR ecosystem in a few steps.'
     },
@@ -113,7 +113,7 @@
       name: 'KAR OSINT',
       status: 'LIVE',
       repo: 'KAR-OSINT-complet',
-      url: 'https://anormadaise2-ops.github.io/KAR-OSINT-complet/',
+      url: 'https://KarlDavidLabs.github.io/KAR-OSINT-complet/',
       description:
         'An organised workspace for open-source intelligence tools, built for clarity and speed.'
     },
@@ -122,7 +122,7 @@
       name: 'HUBBOOST',
       status: 'LIVE',
       repo: 'HUBBOOST',
-      url: 'https://anormadaise2-ops.github.io/HUBBOOST/',
+      url: 'https://KarlDavidLabs.github.io/HUBBOOST/',
       description:
         'A lightweight hub designed to boost everyday workflows with a fast, focused interface.'
     },
@@ -131,7 +131,7 @@
       name: 'KAR BROWSER',
       status: 'IN DEVELOPMENT',
       repo: 'KAR-Browser',
-      url: 'https://github.com/anormadaise2-ops/KAR-Browser',
+      url: 'https://github.com/KarlDavidLabs/KAR-Browser',
       description:
         'A desktop browser built with Electron and Three.js: cinematic intro, tabs, protection and a living animated background.'
     },
@@ -140,7 +140,7 @@
       name: 'KAR STORE',
       status: 'IN DEVELOPMENT',
       repo: 'KAR-STORE',
-      url: 'https://github.com/anormadaise2-ops/KAR-STORE',
+      url: 'https://github.com/KarlDavidLabs/KAR-STORE',
       description:
         'A single destination for every KAR creation. Currently in development.'
     }
