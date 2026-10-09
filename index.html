@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAR Projects Hub — Karl David</title>
-    <meta name="description" content="Centre de contrôle numérique et portfolio des projets de Karl David. Explorez KAR Vault, HUBBOOST et bien plus.">
+    <title>KAR Projects Hub — Ultimate Immersion</title>
+    <meta name="description" content="Centre de contrôle numérique et portfolio des projets de Karl David. Explorez KAR Vault, HUBBOOST, KAR OSINT et plus encore.">
     
     <!-- Open Graph / SEO -->
     <meta property="og:title" content="KAR Projects Hub — Karl David">
-    <meta property="og:description" content="Centre de contrôle numérique et portfolio des projets de développement de Karl David.">
+    <meta property="og:description" content="Centre de contrôle numérique et portfolio immersif des projets de Karl David.">
     <meta property="og:url" content="https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/">
     <meta property="og:type" content="website">
 
-    <!-- Styles CSS Corrigés & Variables Globales -->
+    <!-- Styles CSS Avancés & Théluminescents -->
     <style>
         :root {
             --primary: #00f0ff;
             --primary-rgb: 0, 240, 255;
-            --bg-base: #030712;
-            --bg-surface: rgba(13, 20, 36, 0.75);
-            --border-color: rgba(0, 240, 255, 0.2);
+            --bg-base: #02040a;
+            --bg-surface: rgba(10, 15, 30, 0.75);
+            --border-color: rgba(0, 240, 255, 0.25);
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
-            --accent-glow: rgba(0, 240, 255, 0.3);
+            --accent-glow: rgba(0, 240, 255, 0.35);
             --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
         [data-theme="light"] {
-            --bg-base: #f8fafc;
+            --bg-base: #f1f5f9;
             --bg-surface: rgba(255, 255, 255, 0.85);
             --border-color: rgba(0, 0, 0, 0.1);
             --text-main: #0f172a;
@@ -35,19 +35,13 @@
             --accent-glow: rgba(0, 100, 255, 0.15);
         }
 
-        [data-theme="midnight"] {
-            --bg-base: #090d16;
-            --bg-surface: rgba(15, 23, 42, 0.85);
-            --border-color: rgba(56, 189, 248, 0.25);
-        }
-
         [data-theme="cyber"] {
             --primary: #ff0055;
             --primary-rgb: 255, 0, 85;
-            --bg-base: #050508;
-            --bg-surface: rgba(20, 10, 20, 0.8);
-            --border-color: rgba(255, 0, 85, 0.3);
-            --accent-glow: rgba(255, 0, 85, 0.4);
+            --bg-base: #050205;
+            --bg-surface: rgba(25, 5, 15, 0.85);
+            --border-color: rgba(255, 0, 85, 0.4);
+            --accent-glow: rgba(255, 0, 85, 0.5);
         }
 
         * {
@@ -63,7 +57,70 @@
             min-height: 100vh;
             overflow-x: hidden;
             position: relative;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* Overlay d'introduction (Welcome Modal) */
+        #welcomeOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(2, 4, 10, 0.92);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #welcomeOverlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .welcome-card {
+            background: var(--bg-surface);
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 40px var(--accent-glow);
+            padding: 2.5rem;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+        }
+
+        .welcome-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .welcome-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .welcome-card input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            margin-bottom: 1.2rem;
+            text-align: center;
+            outline: none;
+        }
+
+        .welcome-card input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--accent-glow);
         }
 
         /* Arrière-plan 3D Canvas */
@@ -77,7 +134,21 @@
             z-index: -1;
         }
 
-        /* Navigation */
+        /* Mode VR / Cyber Immersion Overlay */
+        body.vr-mode {
+            transform: scale(0.98);
+            filter: contrast(1.15) brightness(1.1);
+        }
+        body.vr-mode::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.85) 100%);
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Navigation HUD */
         header {
             position: fixed;
             top: 0;
@@ -86,9 +157,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 2rem;
+            padding: 1rem 2.5rem;
             background: var(--bg-surface);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(15px);
             border-bottom: 1px solid var(--border-color);
             z-index: 1000;
         }
@@ -99,19 +170,20 @@
             gap: 0.75rem;
             text-decoration: none;
             color: var(--text-main);
-            font-weight: 700;
-            font-size: 1.25rem;
+            font-weight: 800;
+            font-size: 1.3rem;
+            letter-spacing: 0.05em;
         }
 
         .logo-container span {
             color: var(--primary);
-            text-shadow: 0 0 10px var(--accent-glow);
+            text-shadow: 0 0 12px var(--accent-glow);
         }
 
         nav ul {
             display: flex;
             list-style: none;
-            gap: 1.5rem;
+            gap: 2rem;
             align-items: center;
         }
 
@@ -136,26 +208,27 @@
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
             color: var(--text-main);
-            padding: 0.5rem 0.75rem;
+            padding: 0.55rem 0.85rem;
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
         }
 
         .btn-icon:hover {
             border-color: var(--primary);
-            box-shadow: 0 0 12px var(--accent-glow);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: translateY(-1px);
         }
 
         /* Main Container */
         main {
-            max-width: 1280px;
+            max-width: 1300px;
             margin: 0 auto;
-            padding: 7rem 2rem 4rem 2rem;
+            padding: 8rem 2rem 5rem 2rem;
         }
 
         /* Hero Section */
@@ -165,23 +238,37 @@
             position: relative;
         }
 
+        .user-welcome-tag {
+            display: inline-block;
+            padding: 0.3rem 1rem;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--primary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
         .hero h1 {
             font-size: clamp(2.5rem, 5vw, 4.5rem);
-            font-weight: 800;
+            font-weight: 900;
             margin-bottom: 1rem;
             letter-spacing: -0.02em;
         }
 
         .hero h1 span {
             color: var(--primary);
-            text-shadow: 0 0 20px var(--accent-glow);
+            text-shadow: 0 0 25px var(--accent-glow);
         }
 
         .hero p {
             color: var(--text-muted);
-            font-size: 1.15rem;
-            max-width: 600px;
-            margin: 0 auto 2rem auto;
+            font-size: 1.2rem;
+            max-width: 650px;
+            margin: 0 auto 2.5rem auto;
             line-height: 1.6;
         }
 
@@ -194,28 +281,28 @@
 
         .btn-primary {
             background: var(--primary);
-            color: #030712;
-            font-weight: 600;
-            padding: 0.75rem 1.5rem;
+            color: #02040a;
+            font-weight: 700;
+            padding: 0.85rem 1.75rem;
             border-radius: 8px;
             border: none;
             cursor: pointer;
             text-decoration: none;
-            box-shadow: 0 0 15px var(--accent-glow);
+            box-shadow: 0 0 20px var(--accent-glow);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 25px var(--accent-glow);
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px var(--accent-glow);
         }
 
-        /* Filtres & Recherche */
+        /* Contrôles & Filtres */
         .controls-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin: 3rem 0 2rem 0;
+            margin: 4rem 0 2rem 0;
             gap: 1rem;
             flex-wrap: wrap;
         }
@@ -230,7 +317,7 @@
             width: 100%;
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
-            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
             border-radius: 8px;
             color: var(--text-main);
             outline: none;
@@ -239,12 +326,12 @@
 
         .search-box input:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 10px var(--accent-glow);
+            box-shadow: 0 0 15px var(--accent-glow);
         }
 
         .search-box svg {
             position: absolute;
-            left: 0.75rem;
+            left: 0.85rem;
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
@@ -262,7 +349,7 @@
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
             color: var(--text-muted);
-            padding: 0.5rem 1rem;
+            padding: 0.6rem 1.1rem;
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
@@ -271,36 +358,36 @@
 
         .filter-btn.active, .filter-btn:hover {
             background: var(--primary);
-            color: #030712;
+            color: #02040a;
             border-color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
         }
 
-        /* Grille de Projets */
+        /* Grille des Projets */
         .projects-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.75rem;
         }
 
         .project-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.75rem;
+            border-radius: 14px;
+            padding: 2rem;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(12px);
+            transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
             position: relative;
             overflow: hidden;
         }
 
         .project-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-6px);
             border-color: var(--primary);
-            box-shadow: 0 10px 30px var(--accent-glow);
+            box-shadow: 0 12px 35px var(--accent-glow);
         }
 
         .project-header {
@@ -311,26 +398,26 @@
         }
 
         .project-title {
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             font-weight: 700;
             color: var(--text-main);
         }
 
         .project-badge {
             font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
+            padding: 0.3rem 0.6rem;
             border-radius: 4px;
             background: rgba(0, 240, 255, 0.1);
             color: var(--primary);
             border: 1px solid var(--border-color);
             text-transform: uppercase;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .project-desc {
             color: var(--text-muted);
             font-size: 0.95rem;
-            line-height: 1.5;
+            line-height: 1.6;
             margin-bottom: 1.5rem;
             flex-grow: 1;
         }
@@ -344,7 +431,7 @@
         .btn-card {
             flex: 1;
             text-align: center;
-            padding: 0.5rem;
+            padding: 0.6rem;
             border-radius: 6px;
             font-size: 0.85rem;
             font-weight: 600;
@@ -357,30 +444,31 @@
 
         .btn-card.primary {
             background: var(--primary);
-            color: #030712;
+            color: #02040a;
             border-color: var(--primary);
+            font-weight: 700;
         }
 
         .btn-card:hover {
             opacity: 0.9;
-            box-shadow: 0 0 10px var(--accent-glow);
+            box-shadow: 0 0 12px var(--accent-glow);
         }
 
         /* Panneau de Paramètres (Drawer) */
         .settings-drawer {
             position: fixed;
             top: 0;
-            right: -400px;
-            width: 380px;
+            right: -420px;
+            width: 400px;
             height: 100vh;
             background: var(--bg-base);
             border-left: 1px solid var(--border-color);
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            box-shadow: -15px 0 40px rgba(0,0,0,0.6);
             z-index: 2000;
-            transition: right 0.3s ease;
+            transition: right 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
             display: flex;
             flex-direction: column;
-            padding: 2rem;
+            padding: 2.5rem;
             overflow-y: auto;
         }
 
@@ -398,7 +486,7 @@
         }
 
         .settings-section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.75rem;
         }
 
         .settings-section h3 {
@@ -415,8 +503,8 @@
         }
 
         .color-dot {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
@@ -424,7 +512,7 @@
         }
 
         .color-dot:hover {
-            transform: scale(1.1);
+            transform: scale(1.15);
         }
 
         /* Responsive Design */
@@ -435,10 +523,20 @@
         }
     </style>
 
-    <!-- Inclusion de Three.js pour le fond 3D -->
+    <!-- Inclusion de Three.js pour le fond 3D Avancé -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
 </head>
 <body>
+
+    <!-- Overlay de Bienvenue / Saisie du Nom -->
+    <div id="welcomeOverlay">
+        <div class="welcome-card">
+            <h2>KAR PROJECTS HUB</h2>
+            <p>Initialisation du système. Veuillez entrer votre identifiant opérateur :</p>
+            <input type="text" id="operatorNameInput" placeholder="Ex: Karl David ou Invité" autofocus>
+            <button class="btn-primary" id="enterSystemBtn" style="width: 100%;">Accéder au Hub</button>
+        </div>
+    </div>
 
     <!-- Arrière-plan 3D -->
     <div id="threeContainer"></div>
@@ -451,17 +549,13 @@
         <nav>
             <ul>
                 <li><a href="#projects">Projets</a></li>
-                <li><a href="#about">À propos</a></li>
                 <li><a href="https://github.com/anormadaise2-ops" target="_blank" rel="noopener">GitHub</a></li>
             </ul>
         </nav>
         <div class="nav-actions">
-            <button class="btn-icon" id="muteToggle" aria-label="Activer/Couper le son" data-action="toggle-mute">
-                🔇 Audio
-            </button>
-            <button class="btn-icon" id="settingsToggle" aria-label="Paramètres" data-action="toggle-settings">
-                ⚙️ Paramètres
-            </button>
+            <button class="btn-icon" id="vrToggle" onclick="toggleVRMode()" title="Basculer le mode Immersion VR">🥽 VR</button>
+            <button class="btn-icon" id="muteToggle" aria-label="Activer/Couper le son" data-action="toggle-mute">🔇 Audio</button>
+            <button class="btn-icon" id="settingsToggle" aria-label="Paramètres" data-action="toggle-settings">⚙️ Paramètres</button>
         </div>
     </header>
 
@@ -469,11 +563,12 @@
     <main>
         <!-- Section Hero -->
         <section class="hero">
+            <div class="user-welcome-tag" id="operatorDisplayTag">Opérateur : Invité</div>
             <h1>Centre de Contrôle <span>KAR Hub</span></h1>
-            <p>Bienvenue sur le hub officiel des projets de développement, d'outils et de plateformes créés par <strong>Karl David</strong>.</p>
+            <p>Plateforme immersive de pointe regroupant les outils, applications et coffres-forts numériques de <strong>Karl David</strong>.</p>
             <div class="hero-buttons">
                 <a href="#projects" class="btn-primary">Explorer les Projets</a>
-                <button class="btn-icon" id="startTour" data-action="start-tour">✨ Lancer la Visite</button>
+                <button class="btn-icon" id="startTour" data-action="start-tour">✨ Visite Guidée</button>
             </div>
         </section>
 
@@ -504,7 +599,7 @@
                             <h3 class="project-title">KAR Vault</h3>
                             <span class="project-badge">Sécurité</span>
                         </div>
-                        <p class="project-desc">Coffre-fort numérique sécurisé pour la gestion et la protection de données sensibles.</p>
+                        <p class="project-desc">Coffre-fort numérique hautement sécurisé pour la gestion et la protection de données sensibles.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/KAR-Vault" target="_blank" rel="noopener" class="btn-card">GitHub</a>
@@ -519,7 +614,7 @@
                             <h3 class="project-title">HUBBOOST</h3>
                             <span class="project-badge">Outils PC</span>
                         </div>
-                        <p class="project-desc">Plateforme consacrée aux outils d'optimisation et d'amélioration des performances PC.</p>
+                        <p class="project-desc">Plateforme consacrée aux utilitaires d'optimisation et d'amélioration des performances système.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/HUBBOOST" target="_blank" rel="noopener" class="btn-card primary">GitHub</a>
@@ -533,7 +628,7 @@
                             <h3 class="project-title">KAR Browser</h3>
                             <span class="project-badge">Web / Outil</span>
                         </div>
-                        <p class="project-desc">Application de navigation web et exploration de fonctionnalités intégrées.</p>
+                        <p class="project-desc">Application de navigation web et exploration d'outils connectés intégrés.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Détails</a>
@@ -547,7 +642,7 @@
                             <h3 class="project-title">KAR Store</h3>
                             <span class="project-badge">Boutique</span>
                         </div>
-                        <p class="project-desc">Interface de catalogue et présentation de produits ou modules applicatifs.</p>
+                        <p class="project-desc">Interface de catalogue et présentation de modules applicatifs et composants.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Voir</a>
@@ -561,7 +656,7 @@
                             <h3 class="project-title">KAR OS</h3>
                             <span class="project-badge">Concept / OS</span>
                         </div>
-                        <p class="project-desc">Prototype et concept d'interface système d'exploitation numérique orienté web.</p>
+                        <p class="project-desc">Prototype et concept d'interface de système d'exploitation numérique orienté cloud.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Explorer</a>
@@ -575,7 +670,7 @@
                             <h3 class="project-title">KAR OSINT</h3>
                             <span class="project-badge">Sécurité</span>
                         </div>
-                        <p class="project-desc">Outils d'investigation, de recherche d'informations en sources ouvertes et d'analyse.</p>
+                        <p class="project-desc">Outils d'investigation, d'analyse et de recherche d'informations en sources ouvertes.</p>
                     </div>
                     <div class="project-footer">
                         <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Accéder</a>
@@ -619,9 +714,47 @@
     <!-- Fichier audio de fond -->
     <audio id="bgAudio" src="assets/audio/background.mp3" preload="auto" loop></audio>
 
-    <!-- Script JavaScript Principal -->
+    <!-- Script JavaScript Principal & Logique de Welcome/VR -->
     <script src="app.js" defer></script>
     <script>
+        // Gestion de la modale de bienvenue et de l'opérateur
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('welcomeOverlay');
+            const nameInput = document.getElementById('operatorNameInput');
+            const enterBtn = document.getElementById('enterSystemBtn');
+            const operatorTag = document.getElementById('operatorDisplayTag');
+
+            const savedName = localStorage.getItem('kar_hub_operator');
+            if (savedName) {
+                operatorTag.textContent = `Opérateur : ${savedName}`;
+                overlay.classList.add('hidden');
+            }
+
+            const handleLogin = () => {
+                const name = nameInput.value.trim() || 'Karl David';
+                localStorage.setItem('kar_hub_operator', name);
+                operatorTag.textContent = `Opérateur : ${name}`;
+                overlay.classList.add('hidden');
+            };
+
+            enterBtn.addEventListener('click', handleLogin);
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+        });
+
+        // Mode VR / Immersion totale
+        function toggleVRMode() {
+            document.body.classList.toggle('vr-mode');
+            const isVr = document.body.classList.contains('vr-mode');
+            localStorage.setItem('kar_hub_vr', isVr);
+        }
+
+        if (localStorage.getItem('kar_hub_vr') === 'true') {
+            document.body.classList.add('vr-mode');
+        }
+
+        // Gestion de la couleur d'accentuation
         function setAccentColor(colorHex) {
             document.documentElement.style.setProperty('--primary', colorHex);
             localStorage.setItem('kar_hub_accent', colorHex);
