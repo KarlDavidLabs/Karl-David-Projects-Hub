@@ -1,3126 +1,1707 @@
-﻿'use strict';
+﻿/* =========================================================
+   KAR PROJECTS HUB — APP.JS
+   Compatible / robuste / sans dépendance obligatoire
+   ========================================================= */
 
 (() => {
-  // ============================================================
-  // KAR PROJECTS HUB
-  // Compatible avec l'index.html fourni
-  // ============================================================
+  "use strict";
 
-  // ---------- HELPERS ----------
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  /* ---------------------------------------------------------
+     CONFIGURATION
+  --------------------------------------------------------- */
 
-  const clamp = (value, min, max) =>
-    Math.min(max, Math.max(min, value));
+  const CONFIG = {
+    audio: {
+      record:
+        "assets/audio/Record (mp3cut.net).mp3",
 
-  const lerp = (a, b, amount) =>
-    a + (b - a) * amount;
+      // Fichiers audio optionnels : s'ils n'existent pas,
+      // le script continue normalement.
+      background: [
+        "assets/audio/background.mp3",
+        "assets/audio/background.ogg",
+        "assets/audio/music.mp3"
+      ],
 
-  const easeOutCubic = t =>
-    1 - Math.pow(1 - t, 3);
+      click: [
+        "assets/audio/click.mp3",
+        "assets/audio/click.ogg"
+      ],
 
-  const norm = value =>
-    String(value || '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
+      hover: [
+        "assets/audio/hover.mp3",
+        "assets/audio/hover.ogg"
+      ],
 
-  const pad = value =>
-    String(value).padStart(2, '0');
+      transition: [
+        "assets/audio/transition.mp3",
+        "assets/audio/transition.ogg"
+      ]
+    },
 
-  const reduce =
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    voice: {
+      language: "fr-FR",
+      rate: 1,
+      pitch: 1,
+      volume: 1
+    },
 
-  const coarse =
-    window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    storage: {
+      theme: "kar_theme",
+      music: "kar_music_enabled",
+      sound: "kar_sound_enabled",
+      voice: "kar_voice_enabled"
+    }
+  };
 
-  const mobile =
-    coarse || window.innerWidth < 760;
+  /* ---------------------------------------------------------
+     UTILITAIRES
+  --------------------------------------------------------- */
 
-  const wait = ms =>
-    new Promise(resolve => {
-      const factor = reduce ? 0.15 : S.skip ? 0.08 : 1;
-      setTimeout(resolve, ms * factor);
+  const $ = (selector, parent = document) =>
+    parent.querySelector(selector);
+
+  const $$ = (selector, parent = document) =>
+    [...parent.querySelectorAll(selector)];
+
+  const exists = (selector) => !!$(selector);
+
+  const sleep = (ms) =>
+    new Promise(resolve => setTimeout(resolve, ms));
+
+  function safeStorageGet(key, fallback = null) {
+    try {
+      const value = localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function safeStorageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  /* ---------------------------------------------------------
+     ÉTAT GLOBAL
+  --------------------------------------------------------- */
+
+  const state = {
+    musicEnabled:
+      safeStorageGet(CONFIG.storage.music, "true") !== "false",
+
+    soundEnabled:
+      safeStorageGet(CONFIG.storage.sound, "true") !== "false",
+
+    voiceEnabled:
+      safeStorageGet(CONFIG.storage.voice, "true") !== "false",
+
+    currentAudio: null,
+
+    recorder: null,
+
+    recordedChunks: [],
+
+    recording: false,
+
+    voices: [],
+
+    initialized: false
+  };
+
+  /* ---------------------------------------------------------
+     AUDIO
+  --------------------------------------------------------- */
+
+  const audioCache = new Map();
+
+  function createAudio(src, volume = 1, loop = false) {
+    if (!src) return null;
+
+    try {
+      const audio = new Audio(src);
+      audio.preload = "auto";
+      audio.volume = clamp(volume, 0, 1);
+      audio.loop = loop;
+      return audio;
+    } catch {
+      return null;
+    }
+  }
+
+  function findWorkingAudio(list) {
+    if (!Array.isArray(list)) return null;
+
+    for (const src of list) {
+      if (!src) continue;
+
+      if (!audioCache.has(src)) {
+        const audio = createAudio(src);
+        if (audio) {
+          audioCache.set(src, audio);
+        }
+      }
+
+      if (audioCache.has(src)) {
+        return audioCache.get(src);
+      }
+    }
+
+    return null;
+  }
+
+  function playSound(type = "click") {
+    if (!state.soundEnabled) return;
+
+    const sources = CONFIG.audio[type];
+
+    if (!sources) return;
+
+    const original = findWorkingAudio(sources);
+
+    if (!original) return;
+
+    try {
+      const audio = original.cloneNode(true);
+      audio.volume = 0.45;
+
+      const promise = audio.play();
+
+      if (promise && typeof promise.catch === "function") {
+        promise.catch(() => {});
+      }
+
+      setTimeout(() => {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      }, 5000);
+    } catch {}
+  }
+
+  function playRecordAudio() {
+    if (!state.soundEnabled) return;
+
+    try {
+      const audio = new Audio(CONFIG.audio.record);
+      audio.volume = 1;
+
+      const promise = audio.play();
+
+      if (promise && typeof promise.catch === "function") {
+        promise.catch(() => {});
+      }
+
+      state.currentAudio = audio;
+
+      audio.addEventListener("ended", () => {
+        if (state.currentAudio === audio) {
+          state.currentAudio = null;
+        }
+      });
+    } catch (error) {
+      console.warn("Impossible de lire le fichier audio :", error);
+    }
+  }
+
+  function stopCurrentAudio() {
+    if (!state.currentAudio) return;
+
+    try {
+      state.currentAudio.pause();
+      state.currentAudio.currentTime = 0;
+    } catch {}
+
+    state.currentAudio = null;
+  }
+
+  function createBackgroundAudio() {
+    if (!state.musicEnabled) return null;
+
+    const audio = findWorkingAudio(CONFIG.audio.background);
+
+    if (!audio) return null;
+
+    audio.loop = true;
+    audio.volume = 0.18;
+
+    return audio;
+  }
+
+  function startBackgroundMusic() {
+    if (!state.musicEnabled) return;
+
+    const audio = createBackgroundAudio();
+
+    if (!audio) return;
+
+    state.backgroundAudio = audio;
+
+    const promise = audio.play();
+
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(() => {
+        /*
+          Les navigateurs bloquent souvent l'audio automatique.
+          On attend donc le premier clic.
+        */
+      });
+    }
+  }
+
+  function stopBackgroundMusic() {
+    const audio = state.backgroundAudio;
+
+    if (!audio) return;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {}
+  }
+
+  /* ---------------------------------------------------------
+     DÉMARRAGE AUDIO APRÈS INTERACTION
+  --------------------------------------------------------- */
+
+  let userInteracted = false;
+
+  function unlockAudio() {
+    if (userInteracted) return;
+
+    userInteracted = true;
+
+    if (state.musicEnabled) {
+      startBackgroundMusic();
+    }
+  }
+
+  document.addEventListener("click", unlockAudio, {
+    once: true,
+    passive: true
+  });
+
+  document.addEventListener("keydown", unlockAudio, {
+    once: true,
+    passive: true
+  });
+
+  /* ---------------------------------------------------------
+     SYNTHÈSE VOCALE
+  --------------------------------------------------------- */
+
+  function loadVoices() {
+    if (!("speechSynthesis" in window)) return;
+
+    state.voices = speechSynthesis.getVoices() || [];
+  }
+
+  if ("speechSynthesis" in window) {
+    loadVoices();
+
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function speak(text, options = {}) {
+    if (!state.voiceEnabled) return;
+
+    if (!("speechSynthesis" in window)) {
+      console.warn("La synthèse vocale n'est pas disponible.");
+      return;
+    }
+
+    if (!text) return;
+
+    try {
+      speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(
+        String(text)
+      );
+
+      utterance.lang =
+        options.lang ||
+        CONFIG.voice.language;
+
+      utterance.rate =
+        options.rate ??
+        CONFIG.voice.rate;
+
+      utterance.pitch =
+        options.pitch ??
+        CONFIG.voice.pitch;
+
+      utterance.volume =
+        options.volume ??
+        CONFIG.voice.volume;
+
+      const frenchVoice =
+        state.voices.find(
+          voice =>
+            voice.lang &&
+            voice.lang.toLowerCase().startsWith("fr")
+        );
+
+      if (frenchVoice) {
+        utterance.voice = frenchVoice;
+      }
+
+      speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.warn("Erreur synthèse vocale :", error);
+    }
+  }
+
+  function stopSpeaking() {
+    if (!("speechSynthesis" in window)) return;
+
+    try {
+      speechSynthesis.cancel();
+    } catch {}
+  }
+
+  /* ---------------------------------------------------------
+     ENREGISTREMENT MICRO
+  --------------------------------------------------------- */
+
+  function getSupportedMimeType() {
+    if (!window.MediaRecorder) return "";
+
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4"
+    ];
+
+    for (const type of types) {
+      try {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      } catch {}
+    }
+
+    return "";
+  }
+
+  async function startRecording() {
+    if (state.recording) return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert(
+        "Ton navigateur ne permet pas l'accès au microphone."
+      );
+      return;
+    }
+
+    try {
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
+
+      const mimeType = getSupportedMimeType();
+
+      state.recordedChunks = [];
+
+      state.recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      state.recording = true;
+
+      state.recorder.addEventListener(
+        "dataavailable",
+        event => {
+          if (event.data && event.data.size > 0) {
+            state.recordedChunks.push(event.data);
+          }
+        }
+      );
+
+      state.recorder.addEventListener(
+        "stop",
+        () => {
+          stream.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch {}
+          });
+
+          state.recording = false;
+
+          const blob = new Blob(
+            state.recordedChunks,
+            {
+              type:
+                mimeType ||
+                "audio/webm"
+            }
+          );
+
+          state.lastRecording = blob;
+
+          createRecordingPlayer(blob);
+
+          updateRecordingUI(false);
+        }
+      );
+
+      state.recorder.start();
+
+      updateRecordingUI(true);
+
+      playSound("click");
+
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        "Impossible d'accéder au microphone.\n\n" +
+        "Vérifie que ton navigateur a l'autorisation d'utiliser le micro."
+      );
+    }
+  }
+
+  function stopRecording() {
+    if (!state.recorder) return;
+
+    try {
+      if (
+        state.recorder.state !== "inactive"
+      ) {
+        state.recorder.stop();
+      }
+    } catch {}
+
+    state.recording = false;
+  }
+
+  function createRecordingPlayer(blob) {
+    const url = URL.createObjectURL(blob);
+
+    let container =
+      $("#recordings") ||
+      $("#recording-list") ||
+      $(".recordings") ||
+      $("#audioRecordings");
+
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "recordings";
+
+      document.body.appendChild(container);
+    }
+
+    const wrapper =
+      document.createElement("div");
+
+    wrapper.className = "kar-recording";
+
+    const audio =
+      document.createElement("audio");
+
+    audio.controls = true;
+    audio.src = url;
+
+    const download =
+      document.createElement("a");
+
+    download.href = url;
+    download.download =
+      `KAR-Recording-${Date.now()}.webm`;
+
+    download.textContent =
+      "Télécharger l'enregistrement";
+
+    download.className =
+      "recording-download";
+
+    wrapper.appendChild(audio);
+    wrapper.appendChild(download);
+
+    container.prepend(wrapper);
+  }
+
+  function updateRecordingUI(recording) {
+    $$(
+      "[data-record], #recordButton, #record-btn, .record-button"
+    ).forEach(button => {
+      button.classList.toggle(
+        "recording",
+        recording
+      );
+
+      button.setAttribute(
+        "aria-pressed",
+        recording ? "true" : "false"
+      );
+
+      const text =
+        button.querySelector(
+          "[data-record-text]"
+        );
+
+      if (text) {
+        text.textContent = recording
+          ? "Arrêter"
+          : "Enregistrer";
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     BOUTON ENREGISTREMENT
+  --------------------------------------------------------- */
+
+  function setupRecordingButtons() {
+    const buttons = $$(
+      "[data-record], #recordButton, #record-btn, .record-button"
+    );
+
+    buttons.forEach(button => {
+      if (button.dataset.karRecordingReady) {
+        return;
+      }
+
+      button.dataset.karRecordingReady = "true";
+
+      button.addEventListener("click", event => {
+        event.preventDefault();
+
+        if (state.recording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     RECHERCHE
+  --------------------------------------------------------- */
+
+  function setupSearch() {
+    const inputs = $$(
+      'input[type="search"], [data-search], #search, #searchInput, #projectSearch'
+    );
+
+    inputs.forEach(input => {
+      if (input.dataset.karSearchReady) return;
+
+      input.dataset.karSearchReady = "true";
+
+      input.addEventListener("input", () => {
+        filterProjects(input.value);
+      });
+    });
+  }
+
+  function filterProjects(value) {
+    const query =
+      String(value || "")
+        .trim()
+        .toLowerCase();
+
+    const cards = $$(
+      "[data-project], .project-card, .project, .project-item, .card[data-project]"
+    );
+
+    let visible = 0;
+
+    cards.forEach(card => {
+      const text =
+        card.textContent
+          .toLowerCase();
+
+      const matches =
+        !query ||
+        text.includes(query);
+
+      card.style.display =
+        matches ? "" : "none";
+
+      if (matches) visible++;
     });
 
-  // ---------- STATE ----------
-  const S = {
-    entered: false,
-    skip: false,
+    const counters = $$(
+      "[data-results-count], #resultsCount"
+    );
 
-    section: 'hero',
+    counters.forEach(counter => {
+      counter.textContent =
+        String(visible);
+    });
 
-    warp: 0,
+    const empty = $(
+      "[data-no-results], #noResults"
+    );
 
-    tx: 0,
-    ty: 0,
-
-    mx: 0,
-    my: 0,
-
-    px: 0,
-    py: 0,
-
-    camZ: 8,
-    camLerp: 0.004,
-
-    grid: 0,
-    wire: 0,
-    partT: 0,
-
-    chapter: -1,
-    busy: false,
-    finalBusy: false,
-
-    repos: 5,
-    years: 2
-  };
-
-  // ============================================================
-  // PROJECT DATA
-  // ============================================================
-
-  const GH_USER = 'KarlDavidLabs';
-
-  // KAR AI + KAR Vault exclus
-  const EXCLUDED = new Set([
-    'karai',
-    'karvault'
-  ]);
-
-  const TECH = [
-    'HTML5',
-    'CSS3',
-    'JavaScript',
-    'Three.js',
-    'Python',
-    'Flask',
-    'Electron',
-    'GitHub',
-    'Web Audio'
-  ];
-
-  const PROJECTS = [
-    {
-      name: 'KAR INSTALLER',
-      status: 'LIVE',
-      repo: 'KAR-Installer',
-      url: 'https://KarlDavidLabs.github.io/KAR-Installer/',
-      description:
-        'A modern installation platform. Guided, fast and clean — set up the KAR ecosystem in a few steps.'
-    },
-
-    {
-      name: 'KAR OSINT',
-      status: 'LIVE',
-      repo: 'KAR-OSINT-complet',
-      url: 'https://KarlDavidLabs.github.io/KAR-OSINT-complet/',
-      description:
-        'An organised workspace for open-source intelligence tools, built for clarity and speed.'
-    },
-
-    {
-      name: 'HUBBOOST',
-      status: 'LIVE',
-      repo: 'HUBBOOST',
-      url: 'https://KarlDavidLabs.github.io/HUBBOOST/',
-      description:
-        'A lightweight hub designed to boost everyday workflows with a fast, focused interface.'
-    },
-
-    {
-      name: 'KAR BROWSER',
-      status: 'IN DEVELOPMENT',
-      repo: 'KAR-Browser',
-      url: 'https://github.com/KarlDavidLabs/KAR-Browser',
-      description:
-        'A desktop browser built with Electron and Three.js: cinematic intro, tabs, protection and a living animated background.'
-    },
-
-    {
-      name: 'KAR STORE',
-      status: 'IN DEVELOPMENT',
-      repo: 'KAR-STORE',
-      url: 'https://github.com/KarlDavidLabs/KAR-STORE',
-      description:
-        'A single destination for every KAR creation. Currently in development.'
+    if (empty) {
+      empty.style.display =
+        cards.length > 0 && visible === 0
+          ? ""
+          : "none";
     }
-  ].filter(project =>
-    !EXCLUDED.has(norm(project.name)) &&
-    !EXCLUDED.has(norm(project.repo))
-  );
+  }
 
-  // ============================================================
-  // AUDIO SYSTEM
-  // ============================================================
+  /* ---------------------------------------------------------
+     NAVIGATION
+  --------------------------------------------------------- */
 
-  const MUSIC_SRC =
-    'assets/audio/background.mp3';
+  function setupNavigation() {
+    $$(
+      "[data-scroll], [data-target], [data-section]"
+    ).forEach(button => {
+      if (button.dataset.karNavigationReady) return;
 
-  const SFX_SRC = {
-    click: 'assets/audio/click.mp3',
-    hover: 'assets/audio/hover.mp3',
-    open: 'assets/audio/open.mp3',
-    transition: 'assets/audio/transition.mp3',
-    boot: 'assets/audio/boot.mp3'
-  };
+      button.dataset.karNavigationReady = "true";
 
-  const MUSIC_MUL = {
-    INTRO: 0.72,
-    HERO: 1,
-    PROJECTS: 0.9,
-    ABOUT: 0.9,
-    SOUND: 1,
-    CREDITS: 0.8,
-    EMOTIONAL: 1.1,
-    FINAL: 1.05
-  };
+      button.addEventListener("click", event => {
+        const target =
+          button.dataset.scroll ||
+          button.dataset.target ||
+          button.dataset.section;
 
-  const soundManager = {
+        if (!target) return;
 
-    musicEnabled: false,
-    sfxEnabled: true,
-
-    musicVolume: 0.28,
-    sfxVolume: 0.5,
-
-    musicState: 'INTRO',
-
-    duck: 1,
-
-    music: null,
-
-    currentVolume: 0,
-
-    missing: new Set(),
-
-    cache: {},
-
-    lastHover: 0,
-
-    initialized: false,
-
-    // ----------------------------------------------------------
-    // MUSIC
-    // ----------------------------------------------------------
-
-    initMusic() {
-      if (this.music) {
-        return;
-      }
-
-      try {
-        const existing = $('#backgroundMusic');
-
-        if (existing) {
-          this.music = existing;
-        } else {
-          this.music = new Audio(MUSIC_SRC);
-        }
-
-        this.music.loop = true;
-        this.music.preload = 'auto';
-        this.music.volume = 0;
-
-        this.music.addEventListener(
-          'error',
-          () => {
-            console.warn(
-              '[KAR] background.mp3 introuvable ou illisible.'
-            );
-
-            this.missing.add('music');
-          },
-          { once: true }
-        );
-
-        // Charge immédiatement le fichier.
-        try {
-          this.music.load();
-        } catch (_) {}
-
-        this.initialized = true;
-
-      } catch (error) {
-        console.warn(
-          '[KAR] Impossible d initialiser la musique.',
-          error
-        );
-      }
-    },
-
-    async enableMusic() {
-      this.musicEnabled = true;
-
-      this.initMusic();
-
-      if (
-        this.music &&
-        !this.missing.has('music')
-      ) {
-        try {
-          await this.music.play();
-        } catch (error) {
-          /*
-           * Chrome/Edge peuvent bloquer l'autoplay.
-           * Le prochain clic utilisateur relancera play().
-           */
-          console.warn(
-            '[KAR] Autoplay audio bloque par le navigateur.'
+        const element =
+          document.querySelector(target) ||
+          document.getElementById(
+            target.replace(/^#/, "")
           );
+
+        if (!element) return;
+
+        event.preventDefault();
+
+        playSound("click");
+
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      });
+    });
+
+    $$("a[href^='#']").forEach(link => {
+      if (link.dataset.karAnchorReady) return;
+
+      link.dataset.karAnchorReady = "true";
+
+      link.addEventListener("click", event => {
+        const id =
+          link.getAttribute("href");
+
+        if (!id || id === "#") return;
+
+        const element = $(id);
+
+        if (!element) return;
+
+        event.preventDefault();
+
+        playSound("click");
+
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     BOUTONS DE PROJETS
+  --------------------------------------------------------- */
+
+  function setupProjectButtons() {
+    $$(
+      "[data-project-url], [data-url], [data-open]"
+    ).forEach(button => {
+      if (button.dataset.karProjectReady) return;
+
+      button.dataset.karProjectReady = "true";
+
+      button.addEventListener("click", () => {
+        playSound("click");
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     SONS DES BOUTONS
+  --------------------------------------------------------- */
+
+  function setupButtonSounds() {
+    $$(
+      "button, .button, .btn, [role='button'], a"
+    ).forEach(element => {
+      if (element.dataset.karSoundReady) return;
+
+      element.dataset.karSoundReady = "true";
+
+      element.addEventListener(
+        "mouseenter",
+        () => playSound("hover")
+      );
+
+      element.addEventListener(
+        "click",
+        () => playSound("click")
+      );
+    });
+  }
+
+  /* ---------------------------------------------------------
+     THÈME
+  --------------------------------------------------------- */
+
+  function setupTheme() {
+    const savedTheme =
+      safeStorageGet(
+        CONFIG.storage.theme,
+        "dark"
+      );
+
+    document.documentElement.dataset.theme =
+      savedTheme;
+
+    $$(
+      "[data-theme], #themeToggle, #theme-toggle"
+    ).forEach(button => {
+      if (button.dataset.karThemeReady) return;
+
+      button.dataset.karThemeReady = "true";
+
+      button.addEventListener("click", event => {
+        event.preventDefault();
+
+        const current =
+          document.documentElement.dataset.theme ||
+          "dark";
+
+        const next =
+          current === "dark"
+            ? "light"
+            : "dark";
+
+        document.documentElement.dataset.theme =
+          next;
+
+        safeStorageSet(
+          CONFIG.storage.theme,
+          next
+        );
+
+        playSound("click");
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     CONTRÔLES AUDIO
+  --------------------------------------------------------- */
+
+  function setupAudioControls() {
+    $$(
+      "[data-music], #musicToggle, #music-toggle"
+    ).forEach(button => {
+      if (button.dataset.karMusicReady) return;
+
+      button.dataset.karMusicReady = "true";
+
+      button.addEventListener("click", event => {
+        event.preventDefault();
+
+        state.musicEnabled =
+          !state.musicEnabled;
+
+        safeStorageSet(
+          CONFIG.storage.music,
+          String(state.musicEnabled)
+        );
+
+        if (state.musicEnabled) {
+          startBackgroundMusic();
+        } else {
+          stopBackgroundMusic();
         }
-      }
 
-      this.updateUI();
-    },
+        playSound("click");
+      });
+    });
 
-    disableMusic() {
-      this.musicEnabled = false;
-      this.updateUI();
-    },
+    $$(
+      "[data-sound], #soundToggle, #sound-toggle"
+    ).forEach(button => {
+      if (button.dataset.karSoundReady2) return;
 
-    toggleMusic() {
-      if (this.musicEnabled) {
-        this.disableMusic();
-      } else {
-        this.enableMusic();
-      }
-    },
+      button.dataset.karSoundReady2 = "true";
 
-    async fadeMusicIn() {
-      return this.enableMusic();
-    },
+      button.addEventListener("click", event => {
+        event.preventDefault();
 
-    fadeMusicOut() {
-      this.disableMusic();
-    },
+        state.soundEnabled =
+          !state.soundEnabled;
 
-    setMusicVolume(value) {
-      this.musicVolume =
-        clamp(Number(value) || 0, 0, 0.5);
-    },
+        safeStorageSet(
+          CONFIG.storage.sound,
+          String(state.soundEnabled)
+        );
 
-    // ----------------------------------------------------------
-    // SFX
-    // ----------------------------------------------------------
+        if (state.soundEnabled) {
+          playSound("click");
+        }
+      });
+    });
+  }
 
-    enableSFX() {
-      this.sfxEnabled = true;
-      this.updateUI();
-    },
+  /* ---------------------------------------------------------
+     CONTRÔLE VOIX
+  --------------------------------------------------------- */
 
-    disableSFX() {
-      this.sfxEnabled = false;
-      this.updateUI();
-    },
+  function setupVoiceControls() {
+    $$(
+      "[data-voice], #voiceToggle, #voice-toggle"
+    ).forEach(button => {
+      if (button.dataset.karVoiceReady) return;
 
-    toggleSFX() {
-      if (this.sfxEnabled) {
-        this.disableSFX();
-      } else {
-        this.enableSFX();
-      }
-    },
+      button.dataset.karVoiceReady = "true";
 
-    setSFXVolume(value) {
-      this.sfxVolume =
-        clamp(Number(value) || 0, 0, 1);
-    },
+      button.addEventListener("click", event => {
+        event.preventDefault();
 
-    preloadSFX() {
-      Object.entries(SFX_SRC).forEach(
-        ([name, source]) => {
+        state.voiceEnabled =
+          !state.voiceEnabled;
 
-          if (this.cache[name]) {
-            return;
-          }
+        safeStorageSet(
+          CONFIG.storage.voice,
+          String(state.voiceEnabled)
+        );
 
-          try {
-            const audio = new Audio(source);
+        playSound("click");
 
-            audio.preload = 'auto';
+        if (state.voiceEnabled) {
+          speak(
+            "La voix KAR est maintenant activée."
+          );
+        } else {
+          stopSpeaking();
+        }
+      });
+    });
 
-            audio.addEventListener(
-              'error',
-              () => {
-                console.warn(
-                  '[KAR] SFX introuvable:',
-                  source
-                );
+    $$(
+      "[data-speak]"
+    ).forEach(element => {
+      if (element.dataset.karSpeakReady) return;
 
-                this.missing.add(name);
-              },
-              { once: true }
-            );
+      element.dataset.karSpeakReady = "true";
 
-            this.cache[name] = audio;
+      element.addEventListener("click", () => {
+        const text =
+          element.dataset.speak ||
+          element.textContent;
 
-          } catch (error) {
-            console.warn(
-              '[KAR] Audio SFX indisponible.',
-              error
-            );
-          }
+        speak(text);
+
+        playSound("click");
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------
+     MODALES
+  --------------------------------------------------------- */
+
+  function setupModals() {
+    $$(
+      "[data-modal-open]"
+    ).forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+
+        const id =
+          button.dataset.modalOpen;
+
+        const modal =
+          document.getElementById(id);
+
+        if (!modal) return;
+
+        modal.classList.add("active");
+        modal.classList.add("open");
+
+        playSound("click");
+      });
+    });
+
+    $$(
+      "[data-modal-close], .modal-close"
+    ).forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+
+        const modal =
+          button.closest(".modal") ||
+          button.closest("[role='dialog']");
+
+        if (!modal) return;
+
+        modal.classList.remove("active");
+        modal.classList.remove("open");
+
+        playSound("click");
+      });
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+
+      $$(".modal.active, .modal.open").forEach(
+        modal => {
+          modal.classList.remove("active");
+          modal.classList.remove("open");
         }
       );
-    },
+    });
+  }
 
-    playSFX(name) {
-      if (!this.sfxEnabled) {
-        return;
-      }
+  /* ---------------------------------------------------------
+     MENU MOBILE
+  --------------------------------------------------------- */
 
-      if (!SFX_SRC[name]) {
-        return;
-      }
+  function setupMobileMenu() {
+    const buttons = $$(
+      "[data-menu], #menuToggle, #menu-toggle, .menu-toggle, .hamburger"
+    );
 
-      if (this.missing.has(name)) {
-        return;
-      }
+    buttons.forEach(button => {
+      if (button.dataset.karMenuReady) return;
 
-      if (
-        name === 'hover'
-      ) {
-        const now = performance.now();
+      button.dataset.karMenuReady = "true";
 
-        if (
-          now - this.lastHover < 100
-        ) {
-          return;
-        }
+      button.addEventListener("click", event => {
+        event.preventDefault();
 
-        this.lastHover = now;
-      }
+        document.body.classList.toggle(
+          "menu-open"
+        );
 
-      try {
+        button.classList.toggle("active");
 
-        if (!this.cache[name]) {
-          this.preloadSFX();
-        }
+        playSound("click");
+      });
+    });
+  }
 
-        const base = this.cache[name];
+  /* ---------------------------------------------------------
+     ANIMATION AU SCROLL
+  --------------------------------------------------------- */
 
-        if (!base) {
-          return;
-        }
+  function setupScrollAnimations() {
+    const elements = $$(
+      "[data-animate], .reveal, .fade-in, .slide-up"
+    );
 
-        const audio = base.cloneNode(true);
+    if (!elements.length) return;
 
-        audio.volume =
-          clamp(this.sfxVolume, 0, 1);
-
-        const promise = audio.play();
-
-        if (
-          promise &&
-          typeof promise.catch === 'function'
-        ) {
-          promise.catch(() => {});
-        }
-
-      } catch (_) {}
-    },
-
-    // ----------------------------------------------------------
-    // MUSIC TARGET
-    // ----------------------------------------------------------
-
-    get target() {
-
-      if (!this.musicEnabled) {
-        return 0;
-      }
-
-      const multiplier =
-        MUSIC_MUL[this.musicState] || 1;
-
-      return clamp(
-        this.musicVolume *
-        multiplier *
-        this.duck,
-        0,
-        1
+    if (!("IntersectionObserver" in window)) {
+      elements.forEach(
+        element =>
+          element.classList.add("visible")
       );
-    },
 
-    // ----------------------------------------------------------
-    // AUDIO TICK
-    // ----------------------------------------------------------
-
-    tick() {
-
-      if (!this.music) {
-        return;
-      }
-
-      this.currentVolume =
-        lerp(
-          this.currentVolume,
-          this.target,
-          0.035
-        );
-
-      this.music.volume =
-        clamp(
-          this.currentVolume,
-          0,
-          1
-        );
-
-      if (
-        !this.musicEnabled &&
-        this.currentVolume < 0.002 &&
-        !this.music.paused
-      ) {
-        this.music.pause();
-      }
-    },
-
-    // ----------------------------------------------------------
-    // UI
-    // ----------------------------------------------------------
-
-    updateUI() {
-
-      const musicOn =
-        this.musicEnabled;
-
-      const sfxOn =
-        this.sfxEnabled;
-
-      const navSound =
-        $('#navSound');
-
-      const btnMusic =
-        $('#btnMusic');
-
-      const btnSfx =
-        $('#btnSfx');
-
-      const immersion =
-        $('#immersion');
-
-      if (navSound) {
-        navSound.textContent =
-          musicOn
-            ? 'SOUND ON'
-            : 'SOUND OFF';
-
-        navSound.setAttribute(
-          'aria-pressed',
-          String(musicOn)
-        );
-      }
-
-      if (btnMusic) {
-        btnMusic.textContent =
-          musicOn ? 'ON' : 'OFF';
-
-        btnMusic.setAttribute(
-          'aria-pressed',
-          String(musicOn)
-        );
-      }
-
-      if (btnSfx) {
-        btnSfx.textContent =
-          sfxOn ? 'ON' : 'OFF';
-
-        btnSfx.setAttribute(
-          'aria-pressed',
-          String(sfxOn)
-        );
-      }
-
-      if (immersion) {
-        immersion.textContent =
-          musicOn || sfxOn
-            ? 'IMMERSION ON.'
-            : 'IMMERSION OFF.';
-      }
+      return;
     }
-  };
 
-  // Prépare immédiatement la musique.
-  // La lecture réelle sera autorisée dès que le navigateur le permet.
-  soundManager.initMusic();
+    const observer =
+      new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
 
-  // ============================================================
-  // THREE.JS
-  // ============================================================
+            entry.target.classList.add(
+              "visible",
+              "show",
+              "active"
+            );
 
-  let renderer = null;
-  let scene = null;
-  let camera = null;
-
-  let pts = null;
-  let posArr = null;
-  let colArr = null;
-  let speeds = null;
-  let phases = null;
-
-  let grid = null;
-  let grid2 = null;
-
-  let wire = null;
-  let wire2 = null;
-
-  let lastFov = 60;
-  let N = 0;
-
-  function initThree() {
-
-    if (
-      typeof THREE === 'undefined'
-    ) {
-      console.warn(
-        '[KAR] Three.js non charge.'
+            observer.unobserve(
+              entry.target
+            );
+          });
+        },
+        {
+          threshold: 0.1
+        }
       );
 
+    elements.forEach(
+      element =>
+        observer.observe(element)
+    );
+  }
+
+  /* ---------------------------------------------------------
+     PARALLAXE
+  --------------------------------------------------------- */
+
+  function setupParallax() {
+    const elements = $$(
+      "[data-parallax]"
+    );
+
+    if (!elements.length) return;
+
+    let ticking = false;
+
+    function update() {
+      const scrollY =
+        window.scrollY || 0;
+
+      elements.forEach(element => {
+        const speed =
+          Number(
+            element.dataset.parallax
+          ) || 0.15;
+
+        element.style.transform =
+          `translate3d(0, ${scrollY * speed}px, 0)`;
+      });
+
+      ticking = false;
+    }
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+
+        ticking = true;
+
+        requestAnimationFrame(update);
+      },
+      {
+        passive: true
+      }
+    );
+  }
+
+  /* ---------------------------------------------------------
+     CURSEUR
+  --------------------------------------------------------- */
+
+  function setupCursorEffects() {
+    const cursor =
+      $("#cursor") ||
+      $(".custom-cursor");
+
+    if (!cursor) return;
+
+    document.addEventListener(
+      "mousemove",
+      event => {
+        cursor.style.left =
+          `${event.clientX}px`;
+
+        cursor.style.top =
+          `${event.clientY}px`;
+      },
+      {
+        passive: true
+      }
+    );
+
+    $$(
+      "button, a, .btn, [role='button']"
+    ).forEach(element => {
+      element.addEventListener(
+        "mouseenter",
+        () => cursor.classList.add("hover")
+      );
+
+      element.addEventListener(
+        "mouseleave",
+        () => cursor.classList.remove("hover")
+      );
+    });
+  }
+
+  /* ---------------------------------------------------------
+     PARTICULES SIMPLES
+  --------------------------------------------------------- */
+
+  function setupParticles() {
+    const canvas =
+      $("#particles") ||
+      $("#particleCanvas") ||
+      $("canvas[data-particles]");
+
+    if (!canvas) return;
+
+    const ctx =
+      canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    let particles = [];
+
+    function resize() {
+      const dpr =
+        window.devicePixelRatio || 1;
+
+      canvas.width =
+        window.innerWidth * dpr;
+
+      canvas.height =
+        window.innerHeight * dpr;
+
+      canvas.style.width =
+        `${window.innerWidth}px`;
+
+      canvas.style.height =
+        `${window.innerHeight}px`;
+
+      ctx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+      );
+
+      const count =
+        Math.min(
+          100,
+          Math.max(
+            25,
+            Math.floor(
+              window.innerWidth / 15
+            )
+          )
+        );
+
+      particles =
+        Array.from(
+          { length: count },
+          () => ({
+            x:
+              Math.random() *
+              window.innerWidth,
+
+            y:
+              Math.random() *
+              window.innerHeight,
+
+            size:
+              Math.random() * 2 + 0.5,
+
+            speed:
+              Math.random() * 0.5 + 0.1,
+
+            opacity:
+              Math.random() * 0.6 + 0.1
+          })
+        );
+    }
+
+    function animate() {
+      ctx.clearRect(
+        0,
+        0,
+        window.innerWidth,
+        window.innerHeight
+      );
+
+      particles.forEach(p => {
+        p.y -= p.speed;
+
+        if (p.y < -10) {
+          p.y =
+            window.innerHeight + 10;
+
+          p.x =
+            Math.random() *
+            window.innerWidth;
+        }
+
+        ctx.globalAlpha =
+          p.opacity;
+
+        ctx.beginPath();
+
+        ctx.arc(
+          p.x,
+          p.y,
+          p.size,
+          0,
+          Math.PI * 2
+        );
+
+        ctx.fill();
+      });
+
+      ctx.globalAlpha = 1;
+
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+
+    window.addEventListener(
+      "resize",
+      resize
+    );
+
+    animate();
+  }
+
+  /* ---------------------------------------------------------
+     THREE.JS
+  --------------------------------------------------------- */
+
+  function setupThreeJS() {
+    if (
+      typeof THREE === "undefined"
+    ) {
       return;
     }
 
     const canvas =
-      $('#gl');
+      $("#three-canvas") ||
+      $("#threeCanvas") ||
+      $("canvas[data-three]");
 
-    if (!canvas) {
-      console.warn(
-        '[KAR] Canvas #gl introuvable.'
-      );
-
-      return;
-    }
+    if (!canvas) return;
 
     try {
+      const scene =
+        new THREE.Scene();
 
-      renderer =
+      const camera =
+        new THREE.PerspectiveCamera(
+          60,
+          window.innerWidth /
+            window.innerHeight,
+          0.1,
+          1000
+        );
+
+      const renderer =
         new THREE.WebGLRenderer({
           canvas,
-          antialias: !mobile,
           alpha: true,
-          powerPreference: 'high-performance'
+          antialias: true
         });
 
-    } catch (error) {
-
-      console.warn(
-        '[KAR] WebGL indisponible.',
-        error
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio || 1,
+          2
+        )
       );
 
-      renderer = null;
-
-      return;
-    }
-
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio || 1,
-        2
-      )
-    );
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-    scene =
-      new THREE.Scene();
-
-    scene.fog =
-      new THREE.FogExp2(
-        0x050505,
-        0.03
+      renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
       );
 
-    camera =
-      new THREE.PerspectiveCamera(
-        60,
-        window.innerWidth /
-          window.innerHeight,
-        0.1,
-        300
-      );
+      camera.position.z = 5;
 
-    camera.position.set(
-      0,
-      0,
-      20
-    );
-
-    // Particules
-    N =
-      mobile
-        ? 600
-        : 1100;
-
-    posArr =
-      new Float32Array(
-        N * 3
-      );
-
-    colArr =
-      new Float32Array(
-        N * 3
-      );
-
-    speeds =
-      new Float32Array(N);
-
-    phases =
-      new Float32Array(N);
-
-    for (
-      let i = 0;
-      i < N;
-      i++
-    ) {
-
-      posArr[i * 3] =
-        (Math.random() - 0.5) *
-        80;
-
-      posArr[i * 3 + 1] =
-        (Math.random() - 0.5) *
-        50;
-
-      posArr[i * 3 + 2] =
-        -80 +
-        Math.random() * 100;
-
-      speeds[i] =
-        0.3 +
-        Math.random() * 1.8;
-
-      phases[i] =
-        Math.random() *
-        Math.PI *
-        2;
-    }
-
-    const geometry =
-      new THREE.BufferGeometry();
-
-    geometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(
-        posArr,
-        3
-      )
-    );
-
-    geometry.setAttribute(
-      'color',
-      new THREE.BufferAttribute(
-        colArr,
-        3
-      )
-    );
-
-    pts =
-      new THREE.Points(
-        geometry,
-        new THREE.PointsMaterial({
-          size:
-            mobile
-              ? 0.14
-              : 0.1,
-
-          vertexColors: true,
-          transparent: true,
-          depthWrite: false,
-
-          blending:
-            THREE.AdditiveBlending
-        })
-      );
-
-    scene.add(pts);
-
-    // Grilles
-    const createGrid = y => {
-
-      const helper =
-        new THREE.GridHelper(
-          240,
-          80,
-          0xffffff,
-          0xffffff
-        );
-
-      helper.material.transparent =
-        true;
-
-      helper.material.opacity =
-        0;
-
-      helper.position.y =
-        y;
-
-      scene.add(helper);
-
-      return helper;
-    };
-
-    grid =
-      createGrid(-9);
-
-    grid2 =
-      createGrid(14);
-
-    // Wireframes
-    const createWireMaterial = () =>
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0
-      });
-
-    wire =
-      new THREE.Mesh(
+      const geometry =
         new THREE.IcosahedronGeometry(
-          2.6,
-          mobile ? 0 : 1
-        ),
-        createWireMaterial()
-      );
-
-    wire2 =
-      new THREE.Mesh(
-        new THREE.IcosahedronGeometry(
-          1.4,
-          0
-        ),
-        createWireMaterial()
-      );
-
-    wire.position.z = -2;
-    wire2.position.z = -2;
-
-    scene.add(
-      wire,
-      wire2
-    );
-  }
-
-  function onResize() {
-
-    if (
-      !renderer ||
-      !camera
-    ) {
-      return;
-    }
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-    camera.aspect =
-      window.innerWidth /
-      window.innerHeight;
-
-    camera.updateProjectionMatrix();
-  }
-
-  function renderThree(
-    dt,
-    time
-  ) {
-
-    if (
-      !renderer ||
-      !scene ||
-      !camera ||
-      !pts
-    ) {
-      return;
-    }
-
-    const boost =
-      1 +
-      S.warp * 30;
-
-    for (
-      let i = 0;
-      i < N;
-      i++
-    ) {
-
-      let z =
-        posArr[i * 3 + 2] +
-        speeds[i] *
-        boost *
-        dt;
-
-      if (z > 20) {
-        z -= 100;
-      }
-
-      posArr[i * 3 + 2] =
-        z;
-
-      const c =
-        (
-          0.3 +
-          0.7 *
-          (
-            0.5 +
-            0.5 *
-            Math.sin(
-              time *
-              speeds[i] *
-              0.6 +
-              phases[i]
-            )
-          )
-        ) *
-        S.partT;
-
-      colArr[i * 3] = c;
-      colArr[i * 3 + 1] = c;
-      colArr[i * 3 + 2] = c;
-    }
-
-    pts.geometry
-      .attributes
-      .position
-      .needsUpdate = true;
-
-    pts.geometry
-      .attributes
-      .color
-      .needsUpdate = true;
-
-    pts.rotation.y =
-      time * 0.01 +
-      S.mx * 0.08;
-
-    pts.rotation.x =
-      S.my * 0.04;
-
-    if (grid && grid2) {
-
-      const offset =
-        (
-          time *
-          2.2 *
-          (1 + S.warp * 8)
-        ) % 3;
-
-      grid.position.z =
-        offset;
-
-      grid2.position.z =
-        offset;
-
-      grid.material.opacity =
-        lerp(
-          grid.material.opacity,
-          S.grid,
-          0.03
-        );
-
-      grid2.material.opacity =
-        lerp(
-          grid2.material.opacity,
-          S.grid * 0.6,
-          0.03
-        );
-    }
-
-    if (wire && wire2) {
-
-      const spin =
-        0.15 +
-        S.warp * 6;
-
-      wire.rotation.y +=
-        dt * spin;
-
-      wire.rotation.x +=
-        dt * 0.07;
-
-      wire2.rotation.y -=
-        dt * spin * 1.3;
-
-      wire2.rotation.z +=
-        dt * 0.05;
-
-      wire.position.x =
-        S.mx * 0.5;
-
-      wire.position.y =
-        -S.my * 0.3 -
-        window.scrollY * 0.0004;
-
-      wire.material.opacity =
-        lerp(
-          wire.material.opacity,
-          S.wire,
-          0.03
-        );
-
-      wire2.material.opacity =
-        lerp(
-          wire2.material.opacity,
-          S.wire * 1.4,
-          0.03
-        );
-    }
-
-    camera.position.z =
-      lerp(
-        camera.position.z,
-        S.camZ - S.warp * 7,
-        S.camLerp
-      );
-
-    camera.position.x =
-      lerp(
-        camera.position.x,
-        S.mx * 1.6,
-        0.05
-      );
-
-    camera.position.y =
-      lerp(
-        camera.position.y,
-        -S.my -
-        window.scrollY * 0.0007,
-        0.05
-      );
-
-    camera.lookAt(
-      0,
-      0,
-      0
-    );
-
-    const fov =
-      60 +
-      S.warp * 22;
-
-    if (
-      Math.abs(
-        fov - lastFov
-      ) > 0.05
-    ) {
-
-      lastFov = fov;
-
-      camera.fov =
-        fov;
-
-      camera.updateProjectionMatrix();
-    }
-
-    renderer.render(
-      scene,
-      camera
-    );
-  }
-
-  // ============================================================
-  // GITHUB API
-  // ============================================================
-
-  async function loadGitHub() {
-
-    try {
-
-      const response =
-        await fetch(
-          'https://api.github.com/users/' +
-          GH_USER +
-          '/repos?per_page=100&sort=updated'
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          'HTTP ' +
-          response.status
-        );
-      }
-
-      const list =
-        await response.json();
-
-      if (
-        !Array.isArray(list)
-      ) {
-        throw new Error(
-          'Réponse GitHub invalide'
-        );
-      }
-
-      const visible =
-        list.filter(repo =>
-          repo &&
-          repo.name &&
-          !EXCLUDED.has(
-            norm(repo.name)
-          )
-        );
-
-      S.repos =
-        visible.length ||
-        S.repos;
-
-      const years =
-        visible
-          .map(repo =>
-            new Date(
-              repo.created_at
-            ).getFullYear()
-          )
-          .filter(Number.isFinite);
-
-      if (years.length) {
-
-        S.years =
-          Math.max(
-            1,
-            new Date().getFullYear() -
-            Math.min(...years) +
-            1
-          );
-      }
-
-      visible.forEach(repo => {
-
-        const project =
-          PROJECTS.find(
-            item =>
-              norm(item.repo) ===
-              norm(repo.name)
-          );
-
-        if (!project) {
-          return;
-        }
-
-        project.updated =
-          repo.pushed_at ||
-          repo.updated_at ||
-          '';
-
-        project.lang =
-          repo.language ||
-          '';
-      });
-
-    } catch (error) {
-
-      console.warn(
-        '[KAR] GitHub API indisponible. Valeurs locales utilisées.',
-        error
-      );
-    }
-
-    fillStats();
-  }
-
-  // ============================================================
-  // STATS
-  // ============================================================
-
-  const counted =
-    new Set();
-
-  function fillStats() {
-
-    const values = {
-      statProjects: PROJECTS.length,
-      statRepos: S.repos,
-      statTech: TECH.length,
-      statYears: S.years
-    };
-
-    Object.entries(values).forEach(
-      ([id, value]) => {
-
-        const element =
-          $('#' + id);
-
-        if (!element) {
-          return;
-        }
-
-        element.dataset.to =
-          String(value);
-
-        if (
-          counted.has(id)
-        ) {
-          countUp(element);
-        }
-      }
-    );
-  }
-
-  function countUp(element) {
-
-    if (!element) {
-      return;
-    }
-
-    counted.add(
-      element.id
-    );
-
-    const target =
-      Number(
-        element.dataset.to
-      ) || 0;
-
-    const start =
-      performance.now();
-
-    const duration =
-      reduce
-        ? 200
-        : 1800;
-
-    function step(now) {
-
-      const progress =
-        clamp(
-          (now - start) /
-          duration,
-          0,
+          1.5,
           1
         );
 
-      element.textContent =
-        String(
-          Math.round(
-            target *
-            easeOutCubic(
-              progress
-            )
-          )
+      const material =
+        new THREE.MeshBasicMaterial({
+          wireframe: true,
+          transparent: true,
+          opacity: 0.35
+        });
+
+      const mesh =
+        new THREE.Mesh(
+          geometry,
+          material
         );
 
-      if (
-        progress < 1
-      ) {
+      scene.add(mesh);
+
+      function resize() {
+        camera.aspect =
+          window.innerWidth /
+          window.innerHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+
+      window.addEventListener(
+        "resize",
+        resize
+      );
+
+      function animate() {
         requestAnimationFrame(
-          step
+          animate
+        );
+
+        mesh.rotation.x += 0.0015;
+        mesh.rotation.y += 0.002;
+
+        renderer.render(
+          scene,
+          camera
         );
       }
-    }
 
-    requestAnimationFrame(
-      step
-    );
+      animate();
+
+    } catch (error) {
+      console.warn(
+        "Three.js n'a pas pu être initialisé :",
+        error
+      );
+    }
   }
 
-  // ============================================================
-  // CINEMATIC TRANSITIONS
-  // ============================================================
+  /* ---------------------------------------------------------
+     VR / WEBXR
+  --------------------------------------------------------- */
 
-  function flash(
-    duration = 380
-  ) {
+  function setupVR() {
+    const button =
+      $(
+        "[data-vr], #vrButton, #vr-button"
+      );
 
-    if (reduce) {
+    if (!button) return;
+
+    if (!navigator.xr) {
+      button.disabled = true;
+      button.title =
+        "WebXR n'est pas disponible dans ce navigateur.";
       return;
     }
 
-    const element =
-      $('#flash');
+    button.addEventListener(
+      "click",
+      async () => {
+        try {
+          const supported =
+            await navigator.xr.isSessionSupported(
+              "immersive-vr"
+            );
 
-    if (!element) {
-      return;
-    }
+          if (!supported) {
+            alert(
+              "La VR immersive n'est pas disponible sur cet appareil."
+            );
+            return;
+          }
 
-    element.animate(
-      [
-        {
-          opacity: 0
-        },
-        {
-          opacity: 0.85,
-          offset: 0.18
-        },
-        {
-          opacity: 0
+          if (window.THREE?.XR) {
+            alert(
+              "WebXR est disponible."
+            );
+          }
+
+        } catch (error) {
+          console.warn(error);
         }
-      ],
-      {
-        duration,
-        easing: 'ease-out'
       }
     );
   }
 
-  // ============================================================
-  // BOOT INTRO
-  // ============================================================
-
-  async function runBoot() {
-
-    const get =
-      id => $('#' + id);
-
-    // Précharge musique + SFX pendant l'intro.
-    soundManager.initMusic();
-    soundManager.preloadSFX();
-
-    // Tente la musique immédiatement.
-    // Le navigateur peut refuser tant qu'il n'y a pas eu de clic.
-    soundManager.musicState =
-      'INTRO';
-
-    await soundManager.enableMusic();
-
-    soundManager.playSFX(
-      'boot'
-    );
-
-    await wait(500);
-
-    get('bDot')?.classList.add(
-      'on'
-    );
-
-    await wait(800);
-
-    get('bLogo')?.classList.add(
-      'on'
-    );
-
-    get('bDot')?.classList.remove(
-      'on'
-    );
-
-    await wait(1200);
-
-    S.grid =
-      0.22;
-
-    await wait(1000);
-
-    S.partT =
-      1;
-
-    await wait(900);
-
-    get('bHub')?.classList.add(
-      'on'
-    );
-
-    await wait(900);
-
-    get('bTag')?.classList.add(
-      'on'
-    );
-
-    await wait(900);
-
-    get('bBar')?.classList.add(
-      'on'
-    );
-
-    const steps = [
-      'INITIALIZING KAR EXPERIENCE',
-      'LOADING PROJECT MATRIX',
-      'CONNECTING VISUAL ENGINE',
-      'INITIALIZING AUDIO',
-      'BUILDING EXPERIENCE',
-      'READY'
-    ];
-
-    for (
-      let i = 0;
-      i < steps.length;
-      i++
-    ) {
-
-      const percent =
-        Math.round(
-          ((i + 1) /
-            steps.length) *
-          100
-        );
-
-      const status =
-        get('bStat');
-
-      const percentage =
-        get('bPct');
-
-      const fill =
-        get('bFill');
-
-      if (status) {
-        status.textContent =
-          steps[i];
-      }
-
-      if (percentage) {
-        percentage.textContent =
-          percent + '%';
-      }
-
-      if (fill) {
-        fill.style.transform =
-          'scaleX(' +
-          ((i + 1) /
-            steps.length) +
-          ')';
-      }
-
-      await wait(360);
-    }
-
-    await wait(250);
-
-    get('bBar')?.classList.add(
-      'done'
-    );
-
-    get('bBtns')?.classList.add(
-      'on'
-    );
-
-    const skip =
-      get('bSkip');
-
-    if (skip) {
-      skip.hidden = true;
-    }
-
-    const enterOn =
-      get('enterOn');
-
-    if (enterOn) {
-      enterOn.focus({
-        preventScroll: true
-      });
-    }
-  }
-
-  // ============================================================
-  // ENTER
-  // ============================================================
-
-  async function enter(
-    withSound
-  ) {
-
-    if (S.entered) {
-      return;
-    }
-
-    S.entered =
-      true;
-
-    S.skip =
-      false;
-
-    const enterOn =
-      $('#enterOn');
-
-    const enterOff =
-      $('#enterOff');
-
-    if (enterOn) {
-      enterOn.disabled =
-        true;
-    }
-
-    if (enterOff) {
-      enterOff.disabled =
-        true;
-    }
-
-    soundManager.preloadSFX();
-
-    if (withSound) {
-
-      soundManager.sfxEnabled =
-        true;
-
-      soundManager.musicState =
-        'INTRO';
-
-      // Important :
-      // appelé directement depuis le clic utilisateur.
-      // Le navigateur autorise donc normalement la musique.
-      await soundManager.enableMusic();
-
-      soundManager.playSFX(
-        'transition'
-      );
-
-    } else {
-
-      soundManager.musicEnabled =
-        false;
-
-      soundManager.sfxEnabled =
-        false;
-
-      soundManager.updateUI();
-    }
-
-    const boot =
-      $('#boot');
-
-    if (boot) {
-      boot.classList.add(
-        'glitch'
-      );
-    }
-
-    flash(420);
-
-    S.warp =
-      1.5;
-
-    S.camLerp =
-      0.05;
-
-    S.grid =
-      0.08;
-
-    S.wire =
-      0.2;
-
-    await wait(420);
-
-    if (boot) {
-      boot.classList.remove(
-        'glitch'
-      );
-
-      boot.classList.add(
-        'out'
-      );
-    }
-
-    await wait(900);
-
-    document.documentElement
-      .classList
-      .remove(
-        'locked'
-      );
-
-    document.body
-      .classList
-      .add(
-        'ready'
-      );
-
-    $('#hero')?.classList.add(
-      'in'
-    );
-
-    soundManager.musicState =
-      'HERO';
-
-    await wait(700);
-
-    if (boot) {
-      boot.hidden =
-        true;
-    }
-
-    initObservers();
-  }
-
-  // ============================================================
-  // SECTION CONFIG
-  // ============================================================
-
-  const SEC = {
-
-    hero: {
-      z: 8,
-      grid: 0.08,
-      wire: 0.2,
-      mus: 'HERO'
-    },
-
-    projects: {
-      z: 11,
-      grid: 0.06,
-      wire: 0.12,
-      mus: 'PROJECTS'
-    },
-
-    stats: {
-      z: 12,
-      grid: 0.05,
-      wire: 0.1,
-      mus: 'PROJECTS'
-    },
-
-    about: {
-      z: 10,
-      grid: 0.05,
-      wire: 0.14,
-      mus: 'ABOUT'
-    },
-
-    sound: {
-      z: 9,
-      grid: 0.06,
-      wire: 0.16,
-      mus: 'SOUND'
-    },
-
-    credits: {
-      z: 12,
-      grid: 0.04,
-      wire: 0.1,
-      mus: 'CREDITS'
-    },
-
-    emotional: {
-      z: 17,
-      grid: 0,
-      wire: 0.05,
-      mus: 'EMOTIONAL'
-    },
-
-    final: {
-      z: 5,
-      grid: 0.1,
-      wire: 0.3,
-      mus: 'FINAL'
-    },
-
-    footer: {
-      z: 12,
-      grid: 0.05,
-      wire: 0.1,
-      mus: 'FINAL'
-    }
-  };
-
-  function sectionTransition(
-    id
-  ) {
-
-    const config =
-      SEC[id];
-
-    if (!config) {
-      return;
-    }
-
-    S.section =
-      id;
-
-    S.camZ =
-      config.z;
-
-    S.grid =
-      config.grid;
-
-    S.wire =
-      config.wire;
-
-    soundManager.musicState =
-      config.mus;
-
-    S.warp =
-      Math.max(
-        S.warp,
-        0.25
-      );
-
-    $$('#nav a[data-sec]')
-      .forEach(link => {
-
-        link.classList.toggle(
-          'act',
-          link.dataset.sec === id
-        );
-      });
-  }
-
-  async function finalTransition() {
-
-    if (S.finalBusy) {
-      return;
-    }
-
-    S.finalBusy =
-      true;
-
-    soundManager.playSFX(
-      'transition'
-    );
-
-    flash(500);
-
-    S.warp =
-      2;
-
-    document.body
-      .classList
-      .add(
-        'fx'
-      );
-
-    await wait(900);
-
-    const footer =
-      $('#footer');
-
-    if (footer) {
-
-      footer.scrollIntoView({
-        behavior:
-          reduce
-            ? 'auto'
-            : 'smooth'
-      });
-    }
-
-    await wait(600);
-
-    document.body
-      .classList
-      .remove(
-        'fx'
-      );
-
-    S.finalBusy =
-      false;
-  }
-
-  // ============================================================
-  // PROJECT CHAPTER
-  // ============================================================
-
-  let lastFocus =
-    null;
-
-  function fmtDate(date) {
-
-    const parsed =
-      new Date(date);
-
-    if (
-      Number.isNaN(
-        parsed.getTime()
-      )
-    ) {
-      return '';
-    }
-
-    return parsed
-      .toLocaleDateString(
-        'en-GB',
-        {
-          month: 'short',
-          year: 'numeric'
-        }
-      )
-      .toUpperCase();
-  }
-
-  function fillChapter(index) {
-
-    const project =
-      PROJECTS[index];
-
-    if (!project) {
-      return;
-    }
-
-    const indexElement =
-      $('#chIdx');
-
-    const nameElement =
-      $('#chName');
-
-    const statusElement =
-      $('#chStatus');
-
-    const descriptionElement =
-      $('#chDesc');
-
-    const metaElement =
-      $('#chMeta');
-
-    const openElement =
-      $('#chOpen');
-
-    if (indexElement) {
-      indexElement.textContent =
-        pad(index + 1);
-    }
-
-    if (nameElement) {
-      nameElement.textContent =
-        project.name;
-    }
-
-    if (statusElement) {
-
-      statusElement.textContent =
-        project.status;
-
-      statusElement.classList.toggle(
-        'live',
-        project.status === 'LIVE'
-      );
-    }
-
-    if (descriptionElement) {
-      descriptionElement.textContent =
-        project.description;
-    }
-
-    if (metaElement) {
-
-      metaElement.textContent =
-        [
-          project.lang,
-          project.updated
-            ? 'UPDATED ' +
-              fmtDate(
-                project.updated
-              )
-            : ''
-        ]
-          .filter(Boolean)
-          .join(' · ') ||
-        'KAR ECOSYSTEM';
-    }
-
-    if (openElement) {
-
-      openElement.href =
-        project.url;
-
-      openElement.setAttribute(
-        'aria-label',
-        'Open project ' +
-        project.name
-      );
-    }
-  }
-
-  function openChapter(index) {
-
-    if (
-      S.chapter >= 0
-    ) {
-      return;
-    }
-
-    if (
-      !PROJECTS[index]
-    ) {
-      return;
-    }
-
-    lastFocus =
-      document.activeElement;
-
-    S.chapter =
-      index;
-
-    fillChapter(index);
-
-    const chapter =
-      $('#chapter');
-
-    if (chapter) {
-
-      chapter.classList.add(
-        'on'
-      );
-
-      chapter.setAttribute(
-        'aria-hidden',
-        'false'
-      );
-    }
-
-    document.documentElement
-      .classList
-      .add(
-        'locked'
-      );
-
-    soundManager.duck =
-      0.6;
-
-    soundManager.playSFX(
-      'open'
-    );
-
-    S.warp =
-      Math.max(
-        S.warp,
-        0.5
-      );
-
+  /* ---------------------------------------------------------
+     RACCOURCIS CLAVIER
+  --------------------------------------------------------- */
+
+  function setupKeyboard() {
     document.addEventListener(
-      'keydown',
-      onChapterKey
+      "keydown",
+      event => {
+
+        // Échap = fermer / arrêter
+        if (event.key === "Escape") {
+          stopSpeaking();
+        }
+
+        // Ctrl + K = recherche
+        if (
+          event.ctrlKey &&
+          event.key.toLowerCase() === "k"
+        ) {
+          const search =
+            $(
+              'input[type="search"], #search, #searchInput, [data-search]'
+            );
+
+          if (search) {
+            event.preventDefault();
+            search.focus();
+          }
+        }
+
+        // Ctrl + M = musique
+        if (
+          event.ctrlKey &&
+          event.key.toLowerCase() === "m"
+        ) {
+          event.preventDefault();
+
+          state.musicEnabled =
+            !state.musicEnabled;
+
+          safeStorageSet(
+            CONFIG.storage.music,
+            String(state.musicEnabled)
+          );
+
+          if (state.musicEnabled) {
+            startBackgroundMusic();
+          } else {
+            stopBackgroundMusic();
+          }
+        }
+      }
     );
-
-    setTimeout(() => {
-
-      $('#chClose')?.focus({
-        preventScroll: true
-      });
-
-    }, 500);
   }
 
-  async function stepChapter(
-    direction
-  ) {
+  /* ---------------------------------------------------------
+     LIENS EXTERNES
+  --------------------------------------------------------- */
 
-    if (
-      S.chapter < 0 ||
-      S.busy
-    ) {
-      return;
-    }
+  function setupExternalLinks() {
+    $$("a[href]").forEach(link => {
+      const href =
+        link.getAttribute("href");
 
-    S.busy =
-      true;
-
-    const body =
-      $('#chBody');
-
-    soundManager.playSFX(
-      'transition'
-    );
-
-    S.warp =
-      Math.max(
-        S.warp,
-        0.6
-      );
-
-    body?.classList.add(
-      'sw'
-    );
-
-    await wait(400);
-
-    S.chapter =
-      (
-        S.chapter +
-        direction +
-        PROJECTS.length
-      ) %
-      PROJECTS.length;
-
-    fillChapter(
-      S.chapter
-    );
-
-    body?.classList.remove(
-      'sw'
-    );
-
-    await wait(400);
-
-    S.busy =
-      false;
-  }
-
-  function closeChapter() {
-
-    if (
-      S.chapter < 0
-    ) {
-      return;
-    }
-
-    const chapter =
-      $('#chapter');
-
-    if (chapter) {
-
-      chapter.classList.remove(
-        'on'
-      );
-
-      chapter.setAttribute(
-        'aria-hidden',
-        'true'
-      );
-    }
-
-    document.documentElement
-      .classList
-      .remove(
-        'locked'
-      );
-
-    soundManager.duck =
-      1;
-
-    soundManager.playSFX(
-      'click'
-    );
-
-    document.removeEventListener(
-      'keydown',
-      onChapterKey
-    );
-
-    S.chapter =
-      -1;
-
-    S.busy =
-      false;
-
-    if (
-      lastFocus &&
-      typeof lastFocus.focus ===
-        'function'
-    ) {
-
-      lastFocus.focus({
-        preventScroll: true
-      });
-    }
-  }
-
-  function onChapterKey(
-    event
-  ) {
-
-    if (
-      event.key ===
-      'Escape'
-    ) {
-
-      closeChapter();
-      return;
-    }
-
-    if (
-      event.key ===
-      'ArrowRight'
-    ) {
-
-      soundManager.playSFX(
-        'click'
-      );
-
-      stepChapter(1);
-      return;
-    }
-
-    if (
-      event.key ===
-      'ArrowLeft'
-    ) {
-
-      soundManager.playSFX(
-        'click'
-      );
-
-      stepChapter(-1);
-      return;
-    }
-
-    if (
-      event.key ===
-      'Tab'
-    ) {
-
-      const focusable = [
-        $('#chClose'),
-        $('#chOpen'),
-        $('#chPrev'),
-        $('#chNext')
-      ].filter(Boolean);
+      if (!href) return;
 
       if (
-        !focusable.length
+        href.startsWith("http://") ||
+        href.startsWith("https://")
       ) {
+        link.setAttribute(
+          "rel",
+          "noopener noreferrer"
+        );
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     DATE / ANNÉE AUTOMATIQUE
+  --------------------------------------------------------- */
+
+  function setupYear() {
+    $$(
+      "[data-year], #year, .current-year"
+    ).forEach(element => {
+      element.textContent =
+        String(new Date().getFullYear());
+    });
+  }
+
+  /* ---------------------------------------------------------
+     BOUTONS "PARLER"
+  --------------------------------------------------------- */
+
+  function setupSpeakButtons() {
+    $$(
+      "[data-speech], [data-speak-text]"
+    ).forEach(button => {
+      if (button.dataset.karSpeechReady) {
         return;
       }
 
-      const current =
-        focusable.indexOf(
-          document.activeElement
-        );
+      button.dataset.karSpeechReady = "true";
 
-      event.preventDefault();
+      button.addEventListener(
+        "click",
+        () => {
+          const text =
+            button.dataset.speech ||
+            button.dataset.speakText ||
+            button.textContent;
 
-      const next =
-        (
-          current +
-          (event.shiftKey ? -1 : 1) +
-          focusable.length
-        ) %
-        focusable.length;
+          speak(text);
 
-      focusable[next].focus();
-    }
+          playSound("click");
+        }
+      );
+    });
   }
 
-  function createElement(
-    tag,
-    className,
-    text
-  ) {
+  /* ---------------------------------------------------------
+     DÉTECTION DES ÉLÉMENTS
+  --------------------------------------------------------- */
 
-    const element =
-      document.createElement(
-        tag
-      );
+  function reportCompatibility() {
+    const features = {
+      Audio:
+        typeof Audio !== "undefined",
 
-    if (className) {
-      element.className =
-        className;
-    }
+      Speech:
+        "speechSynthesis" in window,
 
-    if (
-      text !== undefined &&
-      text !== null
-    ) {
-      element.textContent =
-        text;
-    }
+      Microphone:
+        !!navigator.mediaDevices?.getUserMedia,
 
-    return element;
-  }
+      MediaRecorder:
+        "MediaRecorder" in window,
 
-  function buildProjects() {
+      WebGL:
+        (() => {
+          try {
+            const canvas =
+              document.createElement(
+                "canvas"
+              );
 
-    const list =
-      $('#projectList');
-
-    if (!list) {
-      console.warn(
-        '[KAR] #projectList introuvable.'
-      );
-
-      return;
-    }
-
-    list.innerHTML =
-      '';
-
-    PROJECTS.forEach(
-      (project, index) => {
-
-        const li =
-          document.createElement(
-            'li'
-          );
-
-        const button =
-          createElement(
-            'button',
-            'prow rv'
-          );
-
-        button.type =
-          'button';
-
-        button.dataset.project =
-          String(index);
-
-        button.style.setProperty(
-          '--d',
-          (index * 0.08) +
-          's'
-        );
-
-        button.setAttribute(
-          'aria-label',
-          'Open chapter ' +
-          pad(index + 1) +
-          ': ' +
-          project.name +
-          ', ' +
-          project.status
-        );
-
-        const status =
-          createElement(
-            'span',
-            'st mono' +
-              (
-                project.status ===
-                'LIVE'
-                  ? ' live'
-                  : ''
-              ),
-            project.status
-          );
-
-        button.append(
-          createElement(
-            'span',
-            'i mono',
-            pad(index + 1)
-          ),
-
-          createElement(
-            'span',
-            'n',
-            project.name
-          ),
-
-          status,
-
-          createElement(
-            'span',
-            'a',
-            '↗'
-          )
-        );
-
-        button.addEventListener(
-          'click',
-          () => {
-
-            soundManager.playSFX(
-              'click'
+            return !!(
+              canvas.getContext(
+                "webgl"
+              ) ||
+              canvas.getContext(
+                "experimental-webgl"
+              )
             );
-
-            openChapter(
-              index
-            );
+          } catch {
+            return false;
           }
-        );
+        })(),
 
-        li.appendChild(
-          button
-        );
-
-        list.appendChild(
-          li
-        );
-      }
-    );
-  }
-
-  // ============================================================
-  // CURSOR
-  // ============================================================
-
-  let cursorX = 0;
-  let cursorY = 0;
-
-  let cursorScale = 1;
-  let targetCursorScale = 1;
-
-  function initCursor() {
-
-    if (coarse) {
-      return;
-    }
-
-    document.body.classList.add(
-      'hascur'
-    );
-  }
-
-  function cursorTick() {
-
-    if (coarse) {
-      return;
-    }
-
-    cursorX =
-      lerp(
-        cursorX,
-        S.px,
-        0.22
-      );
-
-    cursorY =
-      lerp(
-        cursorY,
-        S.py,
-        0.22
-      );
-
-    cursorScale =
-      lerp(
-        cursorScale,
-        targetCursorScale,
-        0.14
-      );
-
-    const cursor =
-      $('#cur');
-
-    if (!cursor) {
-      return;
-    }
-
-    cursor.style.transform =
-      'translate3d(' +
-      cursorX +
-      'px,' +
-      cursorY +
-      'px,0) scale(' +
-      cursorScale.toFixed(3) +
-      ')';
-  }
-
-  // ============================================================
-  // EMOTIONAL / FINAL SEQUENCES
-  // ============================================================
-
-  const sequence =
-    {
-      emotional: 0,
-      final: 0
+      WebXR:
+        !!navigator.xr
     };
 
-  async function playEmotional() {
+    window.KARFeatures = features;
 
-    const token =
-      ++sequence.emotional;
-
-    const lines =
-      $$('#emotional .el');
-
-    lines.forEach(
-      element =>
-        element.classList.remove(
-          'in'
-        )
-    );
-
-    await wait(500);
-
-    for (
-      const line of lines
-    ) {
-
-      if (
-        token !==
-        sequence.emotional
-      ) {
-        return;
-      }
-
-      line.classList.add(
-        'in'
-      );
-
-      await wait(1900);
-    }
-  }
-
-  function resetEmotional() {
-
-    sequence.emotional++;
-
-    $$('#emotional .el')
-      .forEach(
-        element =>
-          element.classList.remove(
-            'in'
-          )
-      );
-  }
-
-  async function playFinal() {
-
-    const token =
-      ++sequence.final;
-
-    const line =
-      $('#finalLine');
-
-    const big =
-      $('#finalBig');
-
-    const button =
-      $('#btnContinue');
-
-    [
-      line,
-      big,
-      button
-    ]
-      .filter(Boolean)
-      .forEach(
-        element =>
-          element.classList.remove(
-            'in'
-          )
-      );
-
-    await wait(700);
-
-    if (
-      token !==
-      sequence.final
-    ) {
-      return;
-    }
-
-    line?.classList.add(
-      'in'
-    );
-
-    await wait(1800);
-
-    if (
-      token !==
-      sequence.final
-    ) {
-      return;
-    }
-
-    big?.classList.add(
-      'in'
-    );
-
-    await wait(1500);
-
-    if (
-      token !==
-      sequence.final
-    ) {
-      return;
-    }
-
-    button?.classList.add(
-      'in'
+    console.info(
+      "KAR Projects Hub — fonctionnalités :",
+      features
     );
   }
 
-  function resetFinal() {
+  /* ---------------------------------------------------------
+     API GLOBALE
+  --------------------------------------------------------- */
 
-    sequence.final++;
+  window.KAR = {
+    state,
 
-    [
-      '#finalLine',
-      '#finalBig',
-      '#btnContinue'
-    ]
-      .forEach(selector => {
+    speak,
 
-        $(selector)?.classList.remove(
-          'in'
-        );
-      });
-  }
+    stopSpeaking,
 
-  // ============================================================
-  // OBSERVERS
-  // ============================================================
+    playSound,
 
-  let observersReady =
-    false;
+    playRecordAudio,
 
-  function initObservers() {
+    stopCurrentAudio,
 
-    if (
-      observersReady
-    ) {
-      return;
+    startRecording,
+
+    stopRecording,
+
+    filterProjects,
+
+    startBackgroundMusic,
+
+    stopBackgroundMusic
+  };
+
+  /* ---------------------------------------------------------
+     INITIALISATION
+  --------------------------------------------------------- */
+
+  async function init() {
+    if (state.initialized) return;
+
+    state.initialized = true;
+
+    setupSearch();
+    setupNavigation();
+    setupProjectButtons();
+
+    setupRecordingButtons();
+
+    setupButtonSounds();
+
+    setupTheme();
+    setupAudioControls();
+    setupVoiceControls();
+
+    setupSpeakButtons();
+
+    setupModals();
+    setupMobileMenu();
+
+    setupScrollAnimations();
+    setupParallax();
+
+    setupCursorEffects();
+
+    setupParticles();
+    setupThreeJS();
+    setupVR();
+
+    setupKeyboard();
+    setupExternalLinks();
+    setupYear();
+
+    reportCompatibility();
+
+    /*
+      On tente la musique après l'initialisation.
+      Le navigateur peut la bloquer tant que l'utilisateur
+      n'a pas interagi avec la page.
+    */
+    if (state.musicEnabled) {
+      startBackgroundMusic();
     }
 
-    observersReady =
-      true;
-
-    // Reveal
-    if (
-      'IntersectionObserver' in window
-    ) {
-
-      const revealObserver =
-        new IntersectionObserver(
-          entries => {
-
-            entries.forEach(
-              entry => {
-
-                if (
-                  !entry.isIntersecting
-                ) {
-                  return;
-                }
-
-                entry.target
-                  .classList
-                  .add('in');
-
-                revealObserver.unobserve(
-                  entry.target
-                );
-
-                $$(
-                  'b[data-to]',
-                  entry.target
-                ).forEach(
-                  countUp
-                );
-              }
-            );
-          },
-          {
-            threshold: 0.15
-          }
-        );
-
-      $$('.rv').forEach(
-        element =>
-          revealObserver.observe(
-            element
-          )
-      );
-
-      // Section tracking
-      const sectionObserver =
-        new IntersectionObserver(
-          entries => {
-
-            entries.forEach(
-              entry => {
-
-                if (
-                  !entry.isIntersecting
-                ) {
-                  return;
-                }
-
-                const id =
-                  entry.target.id;
-
-                if (
-                  id &&
-                  id !== S.section
-                ) {
-
-                  sectionTransition(
-                    id
-                  );
-                }
-              }
-            );
-          },
-          {
-            rootMargin:
-              '-45% 0px -45% 0px'
-          }
-        );
-
-      $$(
-        'main > section, main > footer'
-      ).forEach(
-        element =>
-          sectionObserver.observe(
-            element
-          )
-      );
-
-      // Emotional
-      const emotional =
-        $('#emotional');
-
-      if (emotional) {
-
-        const observer =
-          new IntersectionObserver(
-            entries => {
-
-              entries.forEach(
-                entry => {
-
-                  if (
-                    entry.isIntersecting &&
-                    entry.intersectionRatio >= 0.5
-                  ) {
-
-                    playEmotional();
-
-                  } else if (
-                    !entry.isIntersecting
-                  ) {
-
-                    resetEmotional();
-                  }
-                }
-              );
-            },
-            {
-              threshold: [
-                0,
-                0.5
-              ]
-            }
-          );
-
-        observer.observe(
-          emotional
-        );
-      }
-
-      // Final
-      const final =
-        $('#final');
-
-      if (final) {
-
-        const observer =
-          new IntersectionObserver(
-            entries => {
-
-              entries.forEach(
-                entry => {
-
-                  if (
-                    entry.isIntersecting &&
-                    entry.intersectionRatio >= 0.5
-                  ) {
-
-                    playFinal();
-
-                  } else if (
-                    !entry.isIntersecting
-                  ) {
-
-                    resetFinal();
-                  }
-                }
-              );
-            },
-            {
-              threshold: [
-                0,
-                0.5
-              ]
-            }
-          );
-
-        observer.observe(
-          final
-        );
-      }
-
-    } else {
-
-      // Fallback vieux navigateur
-      $$('.rv').forEach(
-        element =>
-          element.classList.add(
-            'in'
-          )
-      );
-    }
-  }
-
-  // ============================================================
-  // UI EVENTS
-  // ============================================================
-
-  function bindUI() {
-
-    const enterOn =
-      $('#enterOn');
-
-    const enterOff =
-      $('#enterOff');
-
-    const skip =
-      $('#bSkip');
-
-    const navSound =
-      $('#navSound');
-
-    const btnMusic =
-      $('#btnMusic');
-
-    const btnSfx =
-      $('#btnSfx');
-
-    const chClose =
-      $('#chClose');
-
-    const chPrev =
-      $('#chPrev');
-
-    const chNext =
-      $('#chNext');
-
-    const chOpen =
-      $('#chOpen');
-
-    const btnContinue =
-      $('#btnContinue');
-
-    // ENTER SOUND ON
-    enterOn?.addEventListener(
-      'click',
-      () => {
-        enter(true);
-      }
-    );
-
-    // ENTER SILENT
-    enterOff?.addEventListener(
-      'click',
-      () => {
-        enter(false);
-      }
-    );
-
-    // SKIP
-    skip?.addEventListener(
-      'click',
-      () => {
-
-        S.skip =
-          true;
-
-        // Si la musique a été bloquée par
-        // l'autoplay, le clic sur SKIP
-        // devient également une interaction
-        // permettant de lancer la musique.
-        if (
-          !S.entered
-        ) {
-
-          soundManager
-            .musicState =
-            'INTRO';
-
-          soundManager
-            .enableMusic();
-        }
-      }
-    );
-
-    // NAV SOUND
-    navSound?.addEventListener(
-      'click',
-      () => {
-
-        soundManager.toggleMusic();
-
-        soundManager.playSFX(
-          'click'
-        );
-      }
-    );
-
-    // SOUND SECTION
-    btnMusic?.addEventListener(
-      'click',
-      () => {
-
-        soundManager.toggleMusic();
-
-        soundManager.playSFX(
-          'click'
-        );
-      }
-    );
-
-    btnSfx?.addEventListener(
-      'click',
-      () => {
-
-        const wasEnabled =
-          soundManager.sfxEnabled;
-
-        soundManager.toggleSFX();
-
-        // Si on vient d'activer les SFX,
-        // joue le clic après activation.
-        if (!wasEnabled) {
-          soundManager.playSFX(
-            'click'
-          );
-        }
-      }
-    );
-
-    // CHAPTER
-    chClose?.addEventListener(
-      'click',
-      closeChapter
-    );
-
-    chPrev?.addEventListener(
-      'click',
-      () => {
-
-        soundManager.playSFX(
-          'click'
-        );
-
-        stepChapter(-1);
-      }
-    );
-
-    chNext?.addEventListener(
-      'click',
-      () => {
-
-        soundManager.playSFX(
-          'click'
-        );
-
-        stepChapter(1);
-      }
-    );
-
-    chOpen?.addEventListener(
-      'click',
-      () => {
-
-        soundManager.playSFX(
-          'click'
-        );
-      }
-    );
-
-    btnContinue?.addEventListener(
-      'click',
-      finalTransition
-    );
-
-    // Liens
-    $$('#nav a, #footer a')
-      .forEach(
-        link => {
-
-          link.addEventListener(
-            'click',
-            () => {
-
-              soundManager.playSFX(
-                'click'
-              );
-            }
-          );
-        }
-      );
-
-    // ----------------------------------------------------------
-    // HOVER SOUND
-    // ----------------------------------------------------------
-
-    let lastHovered =
-      null;
-
-    document.addEventListener(
-      'pointerover',
-      event => {
-
-        const target =
-          event.target.closest
-            ? event.target.closest(
-                'a,button'
-              )
-            : null;
-
-        if (
-          target ===
-          lastHovered
-        ) {
-          return;
-        }
-
-        lastHovered =
-          target;
-
-        if (target) {
-
-          soundManager.playSFX(
-            'hover'
-          );
-
-          targetCursorScale =
-            target.classList.contains(
-              'prow'
-            )
-              ? 5
-              : 2.8;
-
-        } else {
-
-          targetCursorScale =
-            1;
-        }
-      }
-    );
-
-    // ----------------------------------------------------------
-    // POINTER
-    // ----------------------------------------------------------
-
-    window.addEventListener(
-      'pointermove',
-      event => {
-
-        S.px =
-          event.clientX;
-
-        S.py =
-          event.clientY;
-
-        S.tx =
-          (
-            event.clientX /
-            window.innerWidth -
-            0.5
-          ) * 2;
-
-        S.ty =
-          (
-            event.clientY /
-            window.innerHeight -
-            0.5
-          ) * 2;
-      },
-      {
-        passive: true
-      }
-    );
-
-    // ----------------------------------------------------------
-    // SCROLL
-    // ----------------------------------------------------------
-
-    window.addEventListener(
-      'scroll',
-      () => {
-
-        $('#nav')?.classList.toggle(
-          'sc',
-          window.scrollY > 40
-        );
-      },
-      {
-        passive: true
-      }
-    );
-
-    // ----------------------------------------------------------
-    // RESIZE
-    // ----------------------------------------------------------
-
-    let resizeFrame =
-      0;
-
-    window.addEventListener(
-      'resize',
-      () => {
-
-        cancelAnimationFrame(
-          resizeFrame
-        );
-
-        resizeFrame =
-          requestAnimationFrame(
-            onResize
-          );
-      }
-    );
-
-    // ----------------------------------------------------------
-    // TAB / VISIBILITY
-    // ----------------------------------------------------------
-
-    document.addEventListener(
-      'visibilitychange',
-      () => {
-
-        if (
-          document.hidden
-        ) {
-
-          soundManager.duck =
-            0.25;
-
-        } else {
-
-          soundManager.duck =
-            S.chapter >= 0
-              ? 0.6
-              : 1;
-        }
-      }
-    );
-
-    // ----------------------------------------------------------
-    // PREMIER CLIC GLOBAL
-    // ----------------------------------------------------------
-    //
-    // Si Chrome a bloqué l'autoplay au lancement,
-    // le premier clic n'importe où dans le site peut
-    // lancer la musique.
-    //
-
-    const unlockAudio =
-      async () => {
-
-        if (
-          !soundManager.musicEnabled
-        ) {
-          return;
-        }
-
-        try {
-          await soundManager.enableMusic();
-        } catch (_) {}
-      };
-
-    document.addEventListener(
-      'pointerdown',
-      unlockAudio,
-      {
-        once: false,
-        passive: true
-      }
-    );
-
-    document.addEventListener(
-      'keydown',
-      unlockAudio,
-      {
-        once: false
-      }
+    console.info(
+      "KAR Projects Hub : APP.JS chargé avec succès."
     );
   }
 
-  // ============================================================
-  // ANIMATION LOOP
-  // ============================================================
-
-  let lastTime =
-    performance.now();
-
-  function frame(now) {
-
-    requestAnimationFrame(
-      frame
-    );
-
-    const dt =
-      Math.min(
-        (now - lastTime) /
-          1000,
-        0.05
-      );
-
-    lastTime =
-      now;
-
-    S.mx =
-      lerp(
-        S.mx,
-        S.tx,
-        0.05
-      );
-
-    S.my =
-      lerp(
-        S.my,
-        S.ty,
-        0.05
-      );
-
-    S.warp *=
-      Math.pow(
-        0.96,
-        dt * 60
-      );
-
-    cursorTick();
-
-    soundManager.tick();
-
-    if (
-      renderer &&
-      !document.hidden
-    ) {
-
-      renderThree(
-        dt,
-        now / 1000
-      );
-    }
-  }
-
-  // ============================================================
-  // INIT
-  // ============================================================
-
-  function init() {
-
-    document.documentElement
-      .classList
-      .add(
-        'locked'
-      );
-
-    // Audio préparé immédiatement
-    soundManager.initMusic();
-    soundManager.preloadSFX();
-
-    buildProjects();
-
-    fillStats();
-
-    soundManager.updateUI();
-
-    bindUI();
-
-    initThree();
-
-    initCursor();
-
-    if (!renderer) {
-
-      // Fallback sans WebGL
-      S.partT =
-        1;
-    }
-
-    requestAnimationFrame(
-      frame
-    );
-
-    loadGitHub();
-
-    runBoot();
-  }
-
-  // ============================================================
-  // START
-  // ============================================================
+  /* ---------------------------------------------------------
+     DOM READY
+  --------------------------------------------------------- */
 
   if (
     document.readyState ===
-    'loading'
+    "loading"
   ) {
-
     document.addEventListener(
-      'DOMContentLoaded',
+      "DOMContentLoaded",
       init,
       {
         once: true
       }
     );
-
   } else {
-
     init();
   }
 
