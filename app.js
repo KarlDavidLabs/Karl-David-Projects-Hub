@@ -1,1708 +1,628 @@
-﻿/* =========================================================
-   KAR PROJECTS HUB — APP.JS
-   Compatible / robuste / sans dépendance obligatoire
-   ========================================================= */
-
-(() => {
-  "use strict";
-
-  /* ---------------------------------------------------------
-     CONFIGURATION
-  --------------------------------------------------------- */
-
-  const CONFIG = {
-    audio: {
-      record:
-        "assets/audio/Record (mp3cut.net).mp3",
-
-      // Fichiers audio optionnels : s'ils n'existent pas,
-      // le script continue normalement.
-      background: [
-        "assets/audio/background.mp3",
-        "assets/audio/background.ogg",
-        "assets/audio/music.mp3"
-      ],
-
-      click: [
-        "assets/audio/click.mp3",
-        "assets/audio/click.ogg"
-      ],
-
-      hover: [
-        "assets/audio/hover.mp3",
-        "assets/audio/hover.ogg"
-      ],
-
-      transition: [
-        "assets/audio/transition.mp3",
-        "assets/audio/transition.ogg"
-      ]
-    },
-
-    voice: {
-      language: "fr-FR",
-      rate: 1,
-      pitch: 1,
-      volume: 1
-    },
-
-    storage: {
-      theme: "kar_theme",
-      music: "kar_music_enabled",
-      sound: "kar_sound_enabled",
-      voice: "kar_voice_enabled"
-    }
-  };
-
-  /* ---------------------------------------------------------
-     UTILITAIRES
-  --------------------------------------------------------- */
-
-  const $ = (selector, parent = document) =>
-    parent.querySelector(selector);
-
-  const $$ = (selector, parent = document) =>
-    [...parent.querySelectorAll(selector)];
-
-  const exists = (selector) => !!$(selector);
-
-  const sleep = (ms) =>
-    new Promise(resolve => setTimeout(resolve, ms));
-
-  function safeStorageGet(key, fallback = null) {
-    try {
-      const value = localStorage.getItem(key);
-      return value === null ? fallback : value;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function safeStorageSet(key, value) {
-    try {
-      localStorage.setItem(key, value);
-    } catch {}
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
-  /* ---------------------------------------------------------
-     ÉTAT GLOBAL
-  --------------------------------------------------------- */
-
-  const state = {
-    musicEnabled:
-      safeStorageGet(CONFIG.storage.music, "true") !== "false",
-
-    soundEnabled:
-      safeStorageGet(CONFIG.storage.sound, "true") !== "false",
-
-    voiceEnabled:
-      safeStorageGet(CONFIG.storage.voice, "true") !== "false",
-
-    currentAudio: null,
-
-    recorder: null,
-
-    recordedChunks: [],
-
-    recording: false,
-
-    voices: [],
-
-    initialized: false
-  };
-
-  /* ---------------------------------------------------------
-     AUDIO
-  --------------------------------------------------------- */
-
-  const audioCache = new Map();
-
-  function createAudio(src, volume = 1, loop = false) {
-    if (!src) return null;
-
-    try {
-      const audio = new Audio(src);
-      audio.preload = "auto";
-      audio.volume = clamp(volume, 0, 1);
-      audio.loop = loop;
-      return audio;
-    } catch {
-      return null;
-    }
-  }
-
-  function findWorkingAudio(list) {
-    if (!Array.isArray(list)) return null;
-
-    for (const src of list) {
-      if (!src) continue;
-
-      if (!audioCache.has(src)) {
-        const audio = createAudio(src);
-        if (audio) {
-          audioCache.set(src, audio);
-        }
-      }
-
-      if (audioCache.has(src)) {
-        return audioCache.get(src);
-      }
-    }
-
-    return null;
-  }
-
-  function playSound(type = "click") {
-    if (!state.soundEnabled) return;
-
-    const sources = CONFIG.audio[type];
-
-    if (!sources) return;
-
-    const original = findWorkingAudio(sources);
-
-    if (!original) return;
-
-    try {
-      const audio = original.cloneNode(true);
-      audio.volume = 0.45;
-
-      const promise = audio.play();
-
-      if (promise && typeof promise.catch === "function") {
-        promise.catch(() => {});
-      }
-
-      setTimeout(() => {
-        try {
-          audio.pause();
-          audio.currentTime = 0;
-        } catch {}
-      }, 5000);
-    } catch {}
-  }
-
-  function playRecordAudio() {
-    if (!state.soundEnabled) return;
-
-    try {
-      const audio = new Audio(CONFIG.audio.record);
-      audio.volume = 1;
-
-      const promise = audio.play();
-
-      if (promise && typeof promise.catch === "function") {
-        promise.catch(() => {});
-      }
-
-      state.currentAudio = audio;
-
-      audio.addEventListener("ended", () => {
-        if (state.currentAudio === audio) {
-          state.currentAudio = null;
-        }
-      });
-    } catch (error) {
-      console.warn("Impossible de lire le fichier audio :", error);
-    }
-  }
-
-  function stopCurrentAudio() {
-    if (!state.currentAudio) return;
-
-    try {
-      state.currentAudio.pause();
-      state.currentAudio.currentTime = 0;
-    } catch {}
-
-    state.currentAudio = null;
-  }
-
-  function createBackgroundAudio() {
-    if (!state.musicEnabled) return null;
-
-    const audio = findWorkingAudio(CONFIG.audio.background);
-
-    if (!audio) return null;
-
-    audio.loop = true;
-    audio.volume = 0.18;
-
-    return audio;
-  }
-
-  function startBackgroundMusic() {
-    if (!state.musicEnabled) return;
-
-    const audio = createBackgroundAudio();
-
-    if (!audio) return;
-
-    state.backgroundAudio = audio;
-
-    const promise = audio.play();
-
-    if (promise && typeof promise.catch === "function") {
-      promise.catch(() => {
-        /*
-          Les navigateurs bloquent souvent l'audio automatique.
-          On attend donc le premier clic.
-        */
-      });
-    }
-  }
-
-  function stopBackgroundMusic() {
-    const audio = state.backgroundAudio;
-
-    if (!audio) return;
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch {}
-  }
-
-  /* ---------------------------------------------------------
-     DÉMARRAGE AUDIO APRÈS INTERACTION
-  --------------------------------------------------------- */
-
-  let userInteracted = false;
-
-  function unlockAudio() {
-    if (userInteracted) return;
-
-    userInteracted = true;
-
-    if (state.musicEnabled) {
-      startBackgroundMusic();
-    }
-  }
-
-  document.addEventListener("click", unlockAudio, {
-    once: true,
-    passive: true
-  });
-
-  document.addEventListener("keydown", unlockAudio, {
-    once: true,
-    passive: true
-  });
-
-  /* ---------------------------------------------------------
-     SYNTHÈSE VOCALE
-  --------------------------------------------------------- */
-
-  function loadVoices() {
-    if (!("speechSynthesis" in window)) return;
-
-    state.voices = speechSynthesis.getVoices() || [];
-  }
-
-  if ("speechSynthesis" in window) {
-    loadVoices();
-
-    speechSynthesis.onvoiceschanged = loadVoices;
-  }
-
-  function speak(text, options = {}) {
-    if (!state.voiceEnabled) return;
-
-    if (!("speechSynthesis" in window)) {
-      console.warn("La synthèse vocale n'est pas disponible.");
-      return;
-    }
-
-    if (!text) return;
-
-    try {
-      speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(
-        String(text)
-      );
-
-      utterance.lang =
-        options.lang ||
-        CONFIG.voice.language;
-
-      utterance.rate =
-        options.rate ??
-        CONFIG.voice.rate;
-
-      utterance.pitch =
-        options.pitch ??
-        CONFIG.voice.pitch;
-
-      utterance.volume =
-        options.volume ??
-        CONFIG.voice.volume;
-
-      const frenchVoice =
-        state.voices.find(
-          voice =>
-            voice.lang &&
-            voice.lang.toLowerCase().startsWith("fr")
-        );
-
-      if (frenchVoice) {
-        utterance.voice = frenchVoice;
-      }
-
-      speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.warn("Erreur synthèse vocale :", error);
-    }
-  }
-
-  function stopSpeaking() {
-    if (!("speechSynthesis" in window)) return;
-
-    try {
-      speechSynthesis.cancel();
-    } catch {}
-  }
-
-  /* ---------------------------------------------------------
-     ENREGISTREMENT MICRO
-  --------------------------------------------------------- */
-
-  function getSupportedMimeType() {
-    if (!window.MediaRecorder) return "";
-
-    const types = [
-      "audio/webm;codecs=opus",
-      "audio/webm",
-      "audio/ogg;codecs=opus",
-      "audio/mp4"
-    ];
-
-    for (const type of types) {
-      try {
-        if (MediaRecorder.isTypeSupported(type)) {
-          return type;
-        }
-      } catch {}
-    }
-
-    return "";
-  }
-
-  async function startRecording() {
-    if (state.recording) return;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      alert(
-        "Ton navigateur ne permet pas l'accès au microphone."
-      );
-      return;
-    }
-
-    try {
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true
-        });
-
-      const mimeType = getSupportedMimeType();
-
-      state.recordedChunks = [];
-
-      state.recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-
-      state.recording = true;
-
-      state.recorder.addEventListener(
-        "dataavailable",
-        event => {
-          if (event.data && event.data.size > 0) {
-            state.recordedChunks.push(event.data);
-          }
-        }
-      );
-
-      state.recorder.addEventListener(
-        "stop",
-        () => {
-          stream.getTracks().forEach(track => {
-            try {
-              track.stop();
-            } catch {}
-          });
-
-          state.recording = false;
-
-          const blob = new Blob(
-            state.recordedChunks,
-            {
-              type:
-                mimeType ||
-                "audio/webm"
-            }
-          );
-
-          state.lastRecording = blob;
-
-          createRecordingPlayer(blob);
-
-          updateRecordingUI(false);
-        }
-      );
-
-      state.recorder.start();
-
-      updateRecordingUI(true);
-
-      playSound("click");
-
-    } catch (error) {
-      console.error(error);
-
-      alert(
-        "Impossible d'accéder au microphone.\n\n" +
-        "Vérifie que ton navigateur a l'autorisation d'utiliser le micro."
-      );
-    }
-  }
-
-  function stopRecording() {
-    if (!state.recorder) return;
-
-    try {
-      if (
-        state.recorder.state !== "inactive"
-      ) {
-        state.recorder.stop();
-      }
-    } catch {}
-
-    state.recording = false;
-  }
-
-  function createRecordingPlayer(blob) {
-    const url = URL.createObjectURL(blob);
-
-    let container =
-      $("#recordings") ||
-      $("#recording-list") ||
-      $(".recordings") ||
-      $("#audioRecordings");
-
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "recordings";
-
-      document.body.appendChild(container);
-    }
-
-    const wrapper =
-      document.createElement("div");
-
-    wrapper.className = "kar-recording";
-
-    const audio =
-      document.createElement("audio");
-
-    audio.controls = true;
-    audio.src = url;
-
-    const download =
-      document.createElement("a");
-
-    download.href = url;
-    download.download =
-      `KAR-Recording-${Date.now()}.webm`;
-
-    download.textContent =
-      "Télécharger l'enregistrement";
-
-    download.className =
-      "recording-download";
-
-    wrapper.appendChild(audio);
-    wrapper.appendChild(download);
-
-    container.prepend(wrapper);
-  }
-
-  function updateRecordingUI(recording) {
-    $$(
-      "[data-record], #recordButton, #record-btn, .record-button"
-    ).forEach(button => {
-      button.classList.toggle(
-        "recording",
-        recording
-      );
-
-      button.setAttribute(
-        "aria-pressed",
-        recording ? "true" : "false"
-      );
-
-      const text =
-        button.querySelector(
-          "[data-record-text]"
-        );
-
-      if (text) {
-        text.textContent = recording
-          ? "Arrêter"
-          : "Enregistrer";
-      }
-    });
-  }
-
-  /* ---------------------------------------------------------
-     BOUTON ENREGISTREMENT
-  --------------------------------------------------------- */
-
-  function setupRecordingButtons() {
-    const buttons = $$(
-      "[data-record], #recordButton, #record-btn, .record-button"
-    );
-
-    buttons.forEach(button => {
-      if (button.dataset.karRecordingReady) {
-        return;
-      }
-
-      button.dataset.karRecordingReady = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        if (state.recording) {
-          stopRecording();
-        } else {
-          startRecording();
-        }
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     RECHERCHE
-  --------------------------------------------------------- */
-
-  function setupSearch() {
-    const inputs = $$(
-      'input[type="search"], [data-search], #search, #searchInput, #projectSearch'
-    );
-
-    inputs.forEach(input => {
-      if (input.dataset.karSearchReady) return;
-
-      input.dataset.karSearchReady = "true";
-
-      input.addEventListener("input", () => {
-        filterProjects(input.value);
-      });
-    });
-  }
-
-  function filterProjects(value) {
-    const query =
-      String(value || "")
-        .trim()
-        .toLowerCase();
-
-    const cards = $$(
-      "[data-project], .project-card, .project, .project-item, .card[data-project]"
-    );
-
-    let visible = 0;
-
-    cards.forEach(card => {
-      const text =
-        card.textContent
-          .toLowerCase();
-
-      const matches =
-        !query ||
-        text.includes(query);
-
-      card.style.display =
-        matches ? "" : "none";
-
-      if (matches) visible++;
-    });
-
-    const counters = $$(
-      "[data-results-count], #resultsCount"
-    );
-
-    counters.forEach(counter => {
-      counter.textContent =
-        String(visible);
-    });
-
-    const empty = $(
-      "[data-no-results], #noResults"
-    );
-
-    if (empty) {
-      empty.style.display =
-        cards.length > 0 && visible === 0
-          ? ""
-          : "none";
-    }
-  }
-
-  /* ---------------------------------------------------------
-     NAVIGATION
-  --------------------------------------------------------- */
-
-  function setupNavigation() {
-    $$(
-      "[data-scroll], [data-target], [data-section]"
-    ).forEach(button => {
-      if (button.dataset.karNavigationReady) return;
-
-      button.dataset.karNavigationReady = "true";
-
-      button.addEventListener("click", event => {
-        const target =
-          button.dataset.scroll ||
-          button.dataset.target ||
-          button.dataset.section;
-
-        if (!target) return;
-
-        const element =
-          document.querySelector(target) ||
-          document.getElementById(
-            target.replace(/^#/, "")
-          );
-
-        if (!element) return;
-
-        event.preventDefault();
-
-        playSound("click");
-
-        element.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      });
-    });
-
-    $$("a[href^='#']").forEach(link => {
-      if (link.dataset.karAnchorReady) return;
-
-      link.dataset.karAnchorReady = "true";
-
-      link.addEventListener("click", event => {
-        const id =
-          link.getAttribute("href");
-
-        if (!id || id === "#") return;
-
-        const element = $(id);
-
-        if (!element) return;
-
-        event.preventDefault();
-
-        playSound("click");
-
-        element.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     BOUTONS DE PROJETS
-  --------------------------------------------------------- */
-
-  function setupProjectButtons() {
-    $$(
-      "[data-project-url], [data-url], [data-open]"
-    ).forEach(button => {
-      if (button.dataset.karProjectReady) return;
-
-      button.dataset.karProjectReady = "true";
-
-      button.addEventListener("click", () => {
-        playSound("click");
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     SONS DES BOUTONS
-  --------------------------------------------------------- */
-
-  function setupButtonSounds() {
-    $$(
-      "button, .button, .btn, [role='button'], a"
-    ).forEach(element => {
-      if (element.dataset.karSoundReady) return;
-
-      element.dataset.karSoundReady = "true";
-
-      element.addEventListener(
-        "mouseenter",
-        () => playSound("hover")
-      );
-
-      element.addEventListener(
-        "click",
-        () => playSound("click")
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     THÈME
-  --------------------------------------------------------- */
-
-  function setupTheme() {
-    const savedTheme =
-      safeStorageGet(
-        CONFIG.storage.theme,
-        "dark"
-      );
-
-    document.documentElement.dataset.theme =
-      savedTheme;
-
-    $$(
-      "[data-theme], #themeToggle, #theme-toggle"
-    ).forEach(button => {
-      if (button.dataset.karThemeReady) return;
-
-      button.dataset.karThemeReady = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        const current =
-          document.documentElement.dataset.theme ||
-          "dark";
-
-        const next =
-          current === "dark"
-            ? "light"
-            : "dark";
-
-        document.documentElement.dataset.theme =
-          next;
-
-        safeStorageSet(
-          CONFIG.storage.theme,
-          next
-        );
-
-        playSound("click");
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     CONTRÔLES AUDIO
-  --------------------------------------------------------- */
-
-  function setupAudioControls() {
-    $$(
-      "[data-music], #musicToggle, #music-toggle"
-    ).forEach(button => {
-      if (button.dataset.karMusicReady) return;
-
-      button.dataset.karMusicReady = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        state.musicEnabled =
-          !state.musicEnabled;
-
-        safeStorageSet(
-          CONFIG.storage.music,
-          String(state.musicEnabled)
-        );
-
-        if (state.musicEnabled) {
-          startBackgroundMusic();
-        } else {
-          stopBackgroundMusic();
-        }
-
-        playSound("click");
-      });
-    });
-
-    $$(
-      "[data-sound], #soundToggle, #sound-toggle"
-    ).forEach(button => {
-      if (button.dataset.karSoundReady2) return;
-
-      button.dataset.karSoundReady2 = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        state.soundEnabled =
-          !state.soundEnabled;
-
-        safeStorageSet(
-          CONFIG.storage.sound,
-          String(state.soundEnabled)
-        );
-
-        if (state.soundEnabled) {
-          playSound("click");
-        }
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     CONTRÔLE VOIX
-  --------------------------------------------------------- */
-
-  function setupVoiceControls() {
-    $$(
-      "[data-voice], #voiceToggle, #voice-toggle"
-    ).forEach(button => {
-      if (button.dataset.karVoiceReady) return;
-
-      button.dataset.karVoiceReady = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        state.voiceEnabled =
-          !state.voiceEnabled;
-
-        safeStorageSet(
-          CONFIG.storage.voice,
-          String(state.voiceEnabled)
-        );
-
-        playSound("click");
-
-        if (state.voiceEnabled) {
-          speak(
-            "La voix KAR est maintenant activée."
-          );
-        } else {
-          stopSpeaking();
-        }
-      });
-    });
-
-    $$(
-      "[data-speak]"
-    ).forEach(element => {
-      if (element.dataset.karSpeakReady) return;
-
-      element.dataset.karSpeakReady = "true";
-
-      element.addEventListener("click", () => {
-        const text =
-          element.dataset.speak ||
-          element.textContent;
-
-        speak(text);
-
-        playSound("click");
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     MODALES
-  --------------------------------------------------------- */
-
-  function setupModals() {
-    $$(
-      "[data-modal-open]"
-    ).forEach(button => {
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        const id =
-          button.dataset.modalOpen;
-
-        const modal =
-          document.getElementById(id);
-
-        if (!modal) return;
-
-        modal.classList.add("active");
-        modal.classList.add("open");
-
-        playSound("click");
-      });
-    });
-
-    $$(
-      "[data-modal-close], .modal-close"
-    ).forEach(button => {
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        const modal =
-          button.closest(".modal") ||
-          button.closest("[role='dialog']");
-
-        if (!modal) return;
-
-        modal.classList.remove("active");
-        modal.classList.remove("open");
-
-        playSound("click");
-      });
-    });
-
-    document.addEventListener("keydown", event => {
-      if (event.key !== "Escape") return;
-
-      $$(".modal.active, .modal.open").forEach(
-        modal => {
-          modal.classList.remove("active");
-          modal.classList.remove("open");
-        }
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     MENU MOBILE
-  --------------------------------------------------------- */
-
-  function setupMobileMenu() {
-    const buttons = $$(
-      "[data-menu], #menuToggle, #menu-toggle, .menu-toggle, .hamburger"
-    );
-
-    buttons.forEach(button => {
-      if (button.dataset.karMenuReady) return;
-
-      button.dataset.karMenuReady = "true";
-
-      button.addEventListener("click", event => {
-        event.preventDefault();
-
-        document.body.classList.toggle(
-          "menu-open"
-        );
-
-        button.classList.toggle("active");
-
-        playSound("click");
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     ANIMATION AU SCROLL
-  --------------------------------------------------------- */
-
-  function setupScrollAnimations() {
-    const elements = $$(
-      "[data-animate], .reveal, .fade-in, .slide-up"
-    );
-
-    if (!elements.length) return;
-
-    if (!("IntersectionObserver" in window)) {
-      elements.forEach(
-        element =>
-          element.classList.add("visible")
-      );
-
-      return;
-    }
-
-    const observer =
-      new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
-
-            entry.target.classList.add(
-              "visible",
-              "show",
-              "active"
-            );
-
-            observer.unobserve(
-              entry.target
-            );
-          });
-        },
-        {
-          threshold: 0.1
-        }
-      );
-
-    elements.forEach(
-      element =>
-        observer.observe(element)
-    );
-  }
-
-  /* ---------------------------------------------------------
-     PARALLAXE
-  --------------------------------------------------------- */
-
-  function setupParallax() {
-    const elements = $$(
-      "[data-parallax]"
-    );
-
-    if (!elements.length) return;
-
-    let ticking = false;
-
-    function update() {
-      const scrollY =
-        window.scrollY || 0;
-
-      elements.forEach(element => {
-        const speed =
-          Number(
-            element.dataset.parallax
-          ) || 0.15;
-
-        element.style.transform =
-          `translate3d(0, ${scrollY * speed}px, 0)`;
-      });
-
-      ticking = false;
-    }
-
-    window.addEventListener(
-      "scroll",
-      () => {
-        if (ticking) return;
-
-        ticking = true;
-
-        requestAnimationFrame(update);
-      },
-      {
-        passive: true
-      }
-    );
-  }
-
-  /* ---------------------------------------------------------
-     CURSEUR
-  --------------------------------------------------------- */
-
-  function setupCursorEffects() {
-    const cursor =
-      $("#cursor") ||
-      $(".custom-cursor");
-
-    if (!cursor) return;
-
-    document.addEventListener(
-      "mousemove",
-      event => {
-        cursor.style.left =
-          `${event.clientX}px`;
-
-        cursor.style.top =
-          `${event.clientY}px`;
-      },
-      {
-        passive: true
-      }
-    );
-
-    $$(
-      "button, a, .btn, [role='button']"
-    ).forEach(element => {
-      element.addEventListener(
-        "mouseenter",
-        () => cursor.classList.add("hover")
-      );
-
-      element.addEventListener(
-        "mouseleave",
-        () => cursor.classList.remove("hover")
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     PARTICULES SIMPLES
-  --------------------------------------------------------- */
-
-  function setupParticles() {
-    const canvas =
-      $("#particles") ||
-      $("#particleCanvas") ||
-      $("canvas[data-particles]");
-
-    if (!canvas) return;
-
-    const ctx =
-      canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    let particles = [];
-
-    function resize() {
-      const dpr =
-        window.devicePixelRatio || 1;
-
-      canvas.width =
-        window.innerWidth * dpr;
-
-      canvas.height =
-        window.innerHeight * dpr;
-
-      canvas.style.width =
-        `${window.innerWidth}px`;
-
-      canvas.style.height =
-        `${window.innerHeight}px`;
-
-      ctx.setTransform(
-        dpr,
-        0,
-        0,
-        dpr,
-        0,
-        0
-      );
-
-      const count =
-        Math.min(
-          100,
-          Math.max(
-            25,
-            Math.floor(
-              window.innerWidth / 15
-            )
-          )
-        );
-
-      particles =
-        Array.from(
-          { length: count },
-          () => ({
-            x:
-              Math.random() *
-              window.innerWidth,
-
-            y:
-              Math.random() *
-              window.innerHeight,
-
-            size:
-              Math.random() * 2 + 0.5,
-
-            speed:
-              Math.random() * 0.5 + 0.1,
-
-            opacity:
-              Math.random() * 0.6 + 0.1
-          })
-        );
-    }
-
-    function animate() {
-      ctx.clearRect(
-        0,
-        0,
-        window.innerWidth,
-        window.innerHeight
-      );
-
-      particles.forEach(p => {
-        p.y -= p.speed;
-
-        if (p.y < -10) {
-          p.y =
-            window.innerHeight + 10;
-
-          p.x =
-            Math.random() *
-            window.innerWidth;
-        }
-
-        ctx.globalAlpha =
-          p.opacity;
-
-        ctx.beginPath();
-
-        ctx.arc(
-          p.x,
-          p.y,
-          p.size,
-          0,
-          Math.PI * 2
-        );
-
-        ctx.fill();
-      });
-
-      ctx.globalAlpha = 1;
-
-      requestAnimationFrame(animate);
-    }
-
-    resize();
-
-    window.addEventListener(
-      "resize",
-      resize
-    );
-
-    animate();
-  }
-
-  /* ---------------------------------------------------------
-     THREE.JS
-  --------------------------------------------------------- */
-
-  function setupThreeJS() {
-    if (
-      typeof THREE === "undefined"
-    ) {
-      return;
-    }
-
-    const canvas =
-      $("#three-canvas") ||
-      $("#threeCanvas") ||
-      $("canvas[data-three]");
-
-    if (!canvas) return;
-
-    try {
-      const scene =
-        new THREE.Scene();
-
-      const camera =
-        new THREE.PerspectiveCamera(
-          60,
-          window.innerWidth /
-            window.innerHeight,
-          0.1,
-          1000
-        );
-
-      const renderer =
-        new THREE.WebGLRenderer({
-          canvas,
-          alpha: true,
-          antialias: true
-        });
-
-      renderer.setPixelRatio(
-        Math.min(
-          window.devicePixelRatio || 1,
-          2
-        )
-      );
-
-      renderer.setSize(
-        window.innerWidth,
-        window.innerHeight
-      );
-
-      camera.position.z = 5;
-
-      const geometry =
-        new THREE.IcosahedronGeometry(
-          1.5,
-          1
-        );
-
-      const material =
-        new THREE.MeshBasicMaterial({
-          wireframe: true,
-          transparent: true,
-          opacity: 0.35
-        });
-
-      const mesh =
-        new THREE.Mesh(
-          geometry,
-          material
-        );
-
-      scene.add(mesh);
-
-      function resize() {
-        camera.aspect =
-          window.innerWidth /
-          window.innerHeight;
-
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(
-          window.innerWidth,
-          window.innerHeight
-        );
-      }
-
-      window.addEventListener(
-        "resize",
-        resize
-      );
-
-      function animate() {
-        requestAnimationFrame(
-          animate
-        );
-
-        mesh.rotation.x += 0.0015;
-        mesh.rotation.y += 0.002;
-
-        renderer.render(
-          scene,
-          camera
-        );
-      }
-
-      animate();
-
-    } catch (error) {
-      console.warn(
-        "Three.js n'a pas pu être initialisé :",
-        error
-      );
-    }
-  }
-
-  /* ---------------------------------------------------------
-     VR / WEBXR
-  --------------------------------------------------------- */
-
-  function setupVR() {
-    const button =
-      $(
-        "[data-vr], #vrButton, #vr-button"
-      );
-
-    if (!button) return;
-
-    if (!navigator.xr) {
-      button.disabled = true;
-      button.title =
-        "WebXR n'est pas disponible dans ce navigateur.";
-      return;
-    }
-
-    button.addEventListener(
-      "click",
-      async () => {
-        try {
-          const supported =
-            await navigator.xr.isSessionSupported(
-              "immersive-vr"
-            );
-
-          if (!supported) {
-            alert(
-              "La VR immersive n'est pas disponible sur cet appareil."
-            );
-            return;
-          }
-
-          if (window.THREE?.XR) {
-            alert(
-              "WebXR est disponible."
-            );
-          }
-
-        } catch (error) {
-          console.warn(error);
-        }
-      }
-    );
-  }
-
-  /* ---------------------------------------------------------
-     RACCOURCIS CLAVIER
-  --------------------------------------------------------- */
-
-  function setupKeyboard() {
-    document.addEventListener(
-      "keydown",
-      event => {
-
-        // Échap = fermer / arrêter
-        if (event.key === "Escape") {
-          stopSpeaking();
-        }
-
-        // Ctrl + K = recherche
-        if (
-          event.ctrlKey &&
-          event.key.toLowerCase() === "k"
-        ) {
-          const search =
-            $(
-              'input[type="search"], #search, #searchInput, [data-search]'
-            );
-
-          if (search) {
-            event.preventDefault();
-            search.focus();
-          }
-        }
-
-        // Ctrl + M = musique
-        if (
-          event.ctrlKey &&
-          event.key.toLowerCase() === "m"
-        ) {
-          event.preventDefault();
-
-          state.musicEnabled =
-            !state.musicEnabled;
-
-          safeStorageSet(
-            CONFIG.storage.music,
-            String(state.musicEnabled)
-          );
-
-          if (state.musicEnabled) {
-            startBackgroundMusic();
-          } else {
-            stopBackgroundMusic();
-          }
-        }
-      }
-    );
-  }
-
-  /* ---------------------------------------------------------
-     LIENS EXTERNES
-  --------------------------------------------------------- */
-
-  function setupExternalLinks() {
-    $$("a[href]").forEach(link => {
-      const href =
-        link.getAttribute("href");
-
-      if (!href) return;
-
-      if (
-        href.startsWith("http://") ||
-        href.startsWith("https://")
-      ) {
-        link.setAttribute(
-          "rel",
-          "noopener noreferrer"
-        );
-      }
-    });
-  }
-
-  /* ---------------------------------------------------------
-     DATE / ANNÉE AUTOMATIQUE
-  --------------------------------------------------------- */
-
-  function setupYear() {
-    $$(
-      "[data-year], #year, .current-year"
-    ).forEach(element => {
-      element.textContent =
-        String(new Date().getFullYear());
-    });
-  }
-
-  /* ---------------------------------------------------------
-     BOUTONS "PARLER"
-  --------------------------------------------------------- */
-
-  function setupSpeakButtons() {
-    $$(
-      "[data-speech], [data-speak-text]"
-    ).forEach(button => {
-      if (button.dataset.karSpeechReady) {
-        return;
-      }
-
-      button.dataset.karSpeechReady = "true";
-
-      button.addEventListener(
-        "click",
-        () => {
-          const text =
-            button.dataset.speech ||
-            button.dataset.speakText ||
-            button.textContent;
-
-          speak(text);
-
-          playSound("click");
-        }
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     DÉTECTION DES ÉLÉMENTS
-  --------------------------------------------------------- */
-
-  function reportCompatibility() {
-    const features = {
-      Audio:
-        typeof Audio !== "undefined",
-
-      Speech:
-        "speechSynthesis" in window,
-
-      Microphone:
-        !!navigator.mediaDevices?.getUserMedia,
-
-      MediaRecorder:
-        "MediaRecorder" in window,
-
-      WebGL:
-        (() => {
-          try {
-            const canvas =
-              document.createElement(
-                "canvas"
-              );
-
-            return !!(
-              canvas.getContext(
-                "webgl"
-              ) ||
-              canvas.getContext(
-                "experimental-webgl"
-              )
-            );
-          } catch {
-            return false;
-          }
-        })(),
-
-      WebXR:
-        !!navigator.xr
+﻿/**
+ * ============================================================================
+ * KAR PROJECTS HUB — app.js (Production Ready)
+ * Creator: Karl David
+ * Repository: https://github.com/anormadaise2-ops/Karl-David-Projects-Hub
+ * URL: https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/
+ * ============================================================================
+ */
+
+(function () {
+    'use strict';
+
+    // Configuration globale et stockage des états
+    const CONFIG = {
+        storagePrefix: 'kar_hub_',
+        defaultTheme: 'dark',
+        defaultVolume: 0.3,
+        audioEnabled: false,
+        ambientEnabled: false,
+        reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
     };
 
-    window.KARFeatures = features;
+    // État de l'application
+    const state = {
+        currentTheme: CONFIG.defaultTheme,
+        audioInitialized: false,
+        audioContext: null,
+        masterGain: null,
+        ambientOscillator: null,
+        soundEnabled: false,
+        isMuted: false,
+        volume: CONFIG.defaultVolume,
+        activeFilters: new Set(['all']),
+        searchQuery: '',
+        guidedTourActive: false,
+        guidedTourStep: 0,
+        threeRenderer: null,
+        threeScene: null,
+        threeCamera: null,
+        threeAnimationId: null,
+        particlesMesh: null
+    };
 
-    console.info(
-      "KAR Projects Hub — fonctionnalités :",
-      features
-    );
-  }
+    // Stockage sécurisé des préférences
+    const Storage = {
+        get(key, fallback) {
+            try {
+                const val = localStorage.getItem(CONFIG.storagePrefix + key);
+                return val !== null ? JSON.parse(val) : fallback;
+            } catch (e) {
+                return fallback;
+            }
+        },
+        set(key, value) {
+            try {
+                localStorage.setItem(CONFIG.storagePrefix + key, JSON.stringify(value));
+            } catch (e) {
+                console.warn('localStorage indisponible ou saturé.', e);
+            }
+        }
+    };
 
-  /* ---------------------------------------------------------
-     API GLOBALE
-  --------------------------------------------------------- */
+    /**
+     * Initialisation principale au chargement du DOM
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp();
+    });
 
-  window.KAR = {
-    state,
+    function initApp() {
+        try {
+            initThemeSystem();
+            initAudioSystem();
+            initNavigation();
+            initProjectSearch();
+            initProjectFilters();
+            initProjectCards();
+            initSettings();
+            initThreeBackground();
+            initMotionEffects();
+            initScrollAnimations();
+            initGuidedTour();
+            initAccessibility();
+            initPerformanceOptimizations();
+            initErrorHandling();
 
-    speak,
-
-    stopSpeaking,
-
-    playSound,
-
-    playRecordAudio,
-
-    stopCurrentAudio,
-
-    startRecording,
-
-    stopRecording,
-
-    filterProjects,
-
-    startBackgroundMusic,
-
-    stopBackgroundMusic
-  };
-
-  /* ---------------------------------------------------------
-     INITIALISATION
-  --------------------------------------------------------- */
-
-  async function init() {
-    if (state.initialized) return;
-
-    state.initialized = true;
-
-    setupSearch();
-    setupNavigation();
-    setupProjectButtons();
-
-    setupRecordingButtons();
-
-    setupButtonSounds();
-
-    setupTheme();
-    setupAudioControls();
-    setupVoiceControls();
-
-    setupSpeakButtons();
-
-    setupModals();
-    setupMobileMenu();
-
-    setupScrollAnimations();
-    setupParallax();
-
-    setupCursorEffects();
-
-    setupParticles();
-    setupThreeJS();
-    setupVR();
-
-    setupKeyboard();
-    setupExternalLinks();
-    setupYear();
-
-    reportCompatibility();
-
-    /*
-      On tente la musique après l'initialisation.
-      Le navigateur peut la bloquer tant que l'utilisateur
-      n'a pas interagi avec la page.
-    */
-    if (state.musicEnabled) {
-      startBackgroundMusic();
+            console.info('KAR Projects Hub : Application initialisée avec succès.');
+        } catch (error) {
+            console.error('Erreur lors de l’initialisation de KAR Projects Hub :', error);
+        }
     }
 
-    console.info(
-      "KAR Projects Hub : APP.JS chargé avec succès."
-    );
-  }
+    /**
+     * 1. Système de Thèmes
+     */
+    function initThemeSystem() {
+        const savedTheme = Storage.get('theme', CONFIG.defaultTheme);
+        setTheme(savedTheme, false);
 
-  /* ---------------------------------------------------------
-     DOM READY
-  --------------------------------------------------------- */
+        // Connexion des boutons / sélecteurs de thème s'ils existent
+        const themeToggles = document.querySelectorAll('[data-theme-toggle], .theme-selector, #themeToggle');
+        themeToggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const themes = ['dark', 'midnight', 'cyber', 'light', 'aurora', 'minimal'];
+                const currentIndex = themes.indexOf(state.currentTheme);
+                const nextTheme = themes[(currentIndex + 1) % themes.length];
+                setTheme(nextTheme, true);
+                playSound('click');
+            });
+        });
+    }
 
-  if (
-    document.readyState ===
-    "loading"
-  ) {
-    document.addEventListener(
-      "DOMContentLoaded",
-      init,
-      {
-        once: true
-      }
-    );
-  } else {
-    init();
-  }
+    function setTheme(themeName, save = true) {
+        state.currentTheme = themeName;
+        document.documentElement.setAttribute('data-theme', themeName);
+        document.body.className = document.body.className.replace(/theme-\S+/g, '');
+        document.body.classList.add(`theme-${themeName}`);
+
+        if (save) {
+            Storage.set('theme', themeName);
+        }
+    }
+
+    /**
+     * 2. Système Audio (Web Audio API)
+     */
+    function initAudioSystem() {
+        state.soundEnabled = Storage.get('soundEnabled', false);
+        state.volume = Storage.get('volume', CONFIG.defaultVolume);
+
+        const muteBtn = document.querySelector('#muteToggle, [data-action="toggle-mute"]');
+        const volumeSlider = document.querySelector('#volumeSlider, [data-action="set-volume"]');
+
+        if (muteBtn) {
+            muteBtn.setAttribute('aria-pressed', !state.soundEnabled);
+            muteBtn.addEventListener('click', () => {
+                state.soundEnabled = !state.soundEnabled;
+                Storage.set('soundEnabled', state.soundEnabled);
+                muteBtn.setAttribute('aria-pressed', !state.soundEnabled);
+                playSound('click');
+            });
+        }
+
+        if (volumeSlider) {
+            volumeSlider.value = state.volume;
+            volumeSlider.addEventListener('input', (e) => {
+                state.volume = parseFloat(e.target.value);
+                Storage.set('volume', state.volume);
+                if (state.masterGain) {
+                    state.masterGain.gain.setValueAtTime(state.volume, state.audioContext.currentTime);
+                }
+            });
+        }
+
+        // Activation globale après premier geste utilisateur (conformité autoplay)
+        const unlockAudio = () => {
+            if (!state.audioInitialized) {
+                initWebAudio();
+                state.audioInitialized = true;
+            }
+            window.removeEventListener('pointerdown', unlockAudio);
+            window.removeEventListener('keydown', unlockAudio);
+        };
+        window.addEventListener('pointerdown', unlockAudio);
+        window.addEventListener('keydown', unlockAudio);
+    }
+
+    function initWebAudio() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            state.audioContext = new AudioContext();
+            state.masterGain = state.audioContext.createGain();
+            state.masterGain.gain.setValueAtTime(state.volume, state.audioContext.currentTime);
+            state.masterGain.connect(state.audioContext.destination);
+        } catch (e) {
+            console.warn('Web Audio API non prise en charge ou bloquée.', e);
+        }
+    }
+
+    function playSound(type) {
+        if (!state.soundEnabled || !state.audioContext || !state.masterGain) return;
+        if (state.audioContext.state === 'suspended') {
+            state.audioContext.resume();
+        }
+
+        try {
+            const osc = state.audioContext.createOscillator();
+            const gain = state.audioContext.createGain();
+            const now = state.audioContext.currentTime;
+
+            osc.connect(gain);
+            gain.connect(state.masterGain);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(880, now + 0.08);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        } catch (err) {
+            // Ignorer silencieusement les erreurs audio mineures
+        }
+    }
+
+    /**
+     * 3. Navigation et Défilement Fluide
+     */
+    function initNavigation() {
+        const navLinks = document.querySelectorAll('a[href^="#"]');
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const targetId = link.getAttribute('href');
+                if (targetId === '#') return;
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    e.preventDefault();
+                    targetElement.scrollIntoView({
+                        behavior: CONFIG.reducedMotion ? 'auto' : 'smooth'
+                    });
+                    playSound('click');
+
+                    // Fermeture du menu mobile si ouvert
+                    const mobileNav = document.querySelector('.mobile-nav, nav.active, .nav-menu.open');
+                    if (mobileNav) {
+                        mobileNav.classList.remove('active', 'open');
+                    }
+                }
+            });
+        });
+
+        // Bouton Retour en haut
+        const scrollTopBtn = document.querySelector('#scrollTop, .scroll-top-btn');
+        if (scrollTopBtn) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 400) {
+                    scrollTopBtn.classList.add('visible');
+                } else {
+                    scrollTopBtn.classList.remove('visible');
+                }
+            });
+            scrollTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: CONFIG.reducedMotion ? 'auto' : 'smooth' });
+                playSound('click');
+            });
+        }
+    }
+
+    /**
+     * 4. Recherche de Projets
+     */
+    function initProjectSearch() {
+        const searchInput = document.querySelector('#projectSearch, input[name="search"], .search-input');
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value.trim().toLowerCase();
+            filterProjects();
+        });
+    }
+
+    /**
+     * 5. Filtres et Catégories
+     */
+    function initProjectFilters() {
+        const filterButtons = document.querySelectorAll('[data-filter], .filter-btn, .category-chip');
+        if (filterButtons.length === 0) return;
+
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filterValue = btn.getAttribute('data-filter') || btn.textContent.trim().toLowerCase();
+
+                filterButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                if (filterValue === 'all' || filterValue === 'tous') {
+                    state.activeFilters = new Set(['all']);
+                } else {
+                    state.activeFilters.delete('all');
+                    if (state.activeFilters.has(filterValue)) {
+                        state.activeFilters.delete(filterValue);
+                        if (state.activeFilters.size === 0) state.activeFilters.add('all');
+                    } else {
+                        state.activeFilters.add(filterValue);
+                    }
+                }
+
+                filterProjects();
+                playSound('click');
+            });
+        });
+    }
+
+    function filterProjects() {
+        const cards = document.querySelectorAll('.project-card, .card, [data-project]');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const title = (card.querySelector('h2, h3, .project-title')?.textContent || '').toLowerCase();
+            const desc = (card.querySelector('p, .project-description')?.textContent || '').toLowerCase();
+            const categories = (card.getAttribute('data-category') || card.dataset.categories || '').toLowerCase();
+            const tags = (card.getAttribute('data-tags') || '').toLowerCase();
+
+            const matchesSearch = state.searchQuery === '' || 
+                title.includes(state.searchQuery) || 
+                desc.includes(state.searchQuery) || 
+                tags.includes(state.searchQuery);
+
+            let matchesFilter = state.activeFilters.has('all');
+            if (!matchesFilter) {
+                for (const filter of state.activeFilters) {
+                    if (categories.includes(filter) || tags.includes(filter)) {
+                        matchesFilter = true;
+                        break;
+                    }
+                }
+            }
+
+            if (matchesSearch && matchesFilter) {
+                card.style.display = '';
+                card.classList.add('fade-in');
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+                card.classList.remove('fade-in');
+            }
+        });
+
+        // Mise à jour d'un compteur de résultats éventuel
+        const countDisplay = document.querySelector('#resultCount, .result-counter');
+        if (countDisplay) {
+            countDisplay.textContent = visibleCount;
+        }
+    }
+
+    /**
+     * 6. Cartes de Projets Interactives
+     */
+    function initProjectCards() {
+        const cards = document.querySelectorAll('.project-card, .card');
+        cards.forEach(card => {
+            // Effet d'élévation au survol si non réduit
+            if (!CONFIG.reducedMotion) {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const xc = rect.width / 2;
+                    const yc = rect.height / 2;
+                    const dx = (x - xc) / xc;
+                    const dy = (y - yc) / yc;
+
+                    card.style.transform = `translateY(-4px) rotateX(${-dy * 3}deg) rotateY(${dx * 3}deg)`;
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0px) rotateX(0deg) rotateY(0deg)';
+                });
+            }
+
+            // Bouton de copie de lien ou autre micro-interaction
+            const copyBtn = card.querySelector('.copy-link, [data-action="copy"]');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const link = card.querySelector('a')?.href || window.location.href;
+                    navigator.clipboard.writeText(link).then(() => {
+                        playSound('success');
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = 'Copié !';
+                        setTimeout(() => copyBtn.textContent = originalText, 2000);
+                    });
+                });
+            }
+        });
+    }
+
+    /**
+     * 7. Panneau de Paramètres
+     */
+    function initSettings() {
+        const settingsPanel = document.querySelector('#settingsPanel, .settings-modal, .settings-drawer');
+        const settingsToggle = document.querySelector('#settingsToggle, [data-action="toggle-settings"]');
+        const closeSettings = document.querySelector('#closeSettings, [data-action="close-settings"]');
+
+        if (!settingsToggle) return;
+
+        settingsToggle.addEventListener('click', () => {
+            if (settingsPanel) {
+                settingsPanel.classList.toggle('open');
+                settingsPanel.setAttribute('aria-hidden', !settingsPanel.classList.contains('open'));
+                playSound('click');
+            }
+        });
+
+        if (closeSettings && settingsPanel) {
+            closeSettings.addEventListener('click', () => {
+                settingsPanel.classList.remove('open');
+                settingsPanel.setAttribute('aria-hidden', 'true');
+                playSound('click');
+            });
+        }
+    }
+
+    /**
+     * 8. Arrière-plan 3D Immersif (Three.js Optionnel)
+     */
+    function initThreeBackground() {
+        const container = document.querySelector('#threeContainer, #canvas-background, .three-bg');
+        if (!container || typeof THREE === 'undefined' || CONFIG.reducedMotion) return;
+
+        try {
+            const scene = new THREE.Scene();
+            state.threeScene = scene;
+
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 50;
+            state.threeCamera = camera;
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.domElement.style.position = 'absolute';
+            renderer.domElement.style.top = '0';
+            renderer.domElement.style.left = '0';
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
+            renderer.domElement.style.pointerEvents = 'none';
+            renderer.domElement.style.zIndex = '-1';
+            container.appendChild(renderer.domElement);
+            state.threeRenderer = renderer;
+
+            // Création d'un champ de particules futuriste
+            const particlesCount = 800;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particlesCount * 3);
+
+            for (let i = 0; i < particlesCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 150;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({
+                color: 0x00f0ff,
+                size: 0.8,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            state.particlesMesh = particles;
+
+            // Animation Loop
+            let clock = new THREE.Clock();
+            const animate = () => {
+                state.threeAnimationId = requestAnimationFrame(animate);
+                const elapsedTime = clock.getElapsedTime();
+
+                if (state.particlesMesh) {
+                    state.particlesMesh.rotation.y = elapsedTime * 0.03;
+                    state.particlesMesh.rotation.x = elapsedTime * 0.015;
+                }
+
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            // Gestion du redimensionnement
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+        } catch (e) {
+            console.warn('Impossible d’initialiser Three.js :', e);
+        }
+    }
+
+    /**
+     * 9. Motion Design et Effets Visuels
+     */
+    function initMotionEffects() {
+        // Suivi léger de souris pour éléments décoratifs (Parallaxe)
+        if (CONFIG.reducedMotion) return;
+
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth - 0.5) * 20;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 20;
+
+            const parallaxLayers = document.querySelectorAll('.parallax-layer');
+            parallaxLayers.forEach(layer => {
+                const speed = parseFloat(layer.getAttribute('data-speed') || 1);
+                layer.style.transform = `translate(${mouseX * speed}px, ${mouseY * speed}px)`;
+            });
+        });
+    }
+
+    /**
+     * 10. Animations au Défilement (IntersectionObserver)
+     */
+    function initScrollAnimations() {
+        const animatedElements = document.querySelectorAll('.animate-on-scroll, section, .project-card');
+        if (animatedElements.length === 0 || !('IntersectionObserver' in window)) return;
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries, observerInstance) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observerInstance.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        animatedElements.forEach(el => {
+            if (CONFIG.reducedMotion) {
+                el.classList.add('is-visible');
+            } else {
+                observer.observe(el);
+            }
+        });
+    }
+
+    /**
+     * 11. Guide Interactif (Visite Guidée)
+     */
+    function initGuidedTour() {
+        const tourBtn = document.querySelector('#startTour, [data-action="start-tour"]');
+        if (!tourBtn) return;
+
+        tourBtn.addEventListener('click', () => {
+            state.guidedTourActive = true;
+            state.guidedTourStep = 0;
+            runTourStep();
+            playSound('click');
+        });
+    }
+
+    function runTourStep() {
+        const steps = [
+            { title: 'Bienvenue sur KAR Projects Hub', text: 'Découvrez l’ensemble des projets de Karl David.' },
+            { title: 'Recherche instantanée', text: 'Utilisez la barre de recherche pour trouver rapidement un projet par nom ou technologie.' },
+            { title: 'Filtres par catégories', text: 'Triez les projets par domaine (Web, Sécurité, Outils, etc.).' },
+            { title: 'Paramètres & Thèmes', text: 'Personnalisez l’apparence et activez les retours sonores selon vos préférences.' }
+        ];
+
+        if (state.guidedTourStep >= steps.length) {
+            state.guidedTourActive = false;
+            return;
+        }
+
+        const current = steps[state.guidedTourStep];
+        // Affichage simple d'une modale ou notification du guide
+        alert(`${current.title}\n\n${current.text}`);
+        state.guidedTourStep++;
+        if (state.guidedTourActive) {
+            runTourStep();
+        }
+    }
+
+    /**
+     * 12. Accessibilité
+     */
+    function initAccessibility() {
+        // Amélioration de la navigation au clavier
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.querySelector('.settings-modal.open, .modal.open');
+                if (modal) {
+                    modal.classList.remove('open');
+                }
+            }
+        });
+    }
+
+    /**
+     * 13. Optimisations de Performance & Gestion Visibilité
+     */
+    function initPerformanceOptimizations() {
+        // Pause de l'animation 3D si l'onglet est masqué
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (state.threeAnimationId) {
+                    cancelAnimationFrame(state.threeAnimationId);
+                    state.threeAnimationId = null;
+                }
+            } else {
+                if (state.threeRenderer && state.threeScene && state.threeCamera && !state.threeAnimationId) {
+                    const animate = () => {
+                        state.threeAnimationId = requestAnimationFrame(animate);
+                        state.threeRenderer.render(state.threeScene, state.threeCamera);
+                    };
+                    animate();
+                }
+            }
+        });
+    }
+
+    /**
+     * 14. Gestion Globale des Erreurs
+     */
+    function initErrorHandling() {
+        window.addEventListener('error', (event) => {
+            console.warn('Erreur front-end interceptée par KAR Hub :', event.message);
+        });
+    }
 
 })();

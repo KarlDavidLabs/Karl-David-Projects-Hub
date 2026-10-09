@@ -1,217 +1,390 @@
 ﻿# KAR Projects Hub
 
-## Présentation
+**One creator. Multiple projects. Infinite possibilities.**
 
-**KAR Projects Hub** est le portail central des projets numériques de **Karl David**.
+KAR Projects Hub est un portail centralisant les projets développés par Karl David. Il rassemble des expériences web, des outils informatiques, des applications et des projets expérimentaux dans une interface moderne, interactive et responsive.
 
-Il regroupe différents projets logiciels, applications web, outils de sécurité, outils OSINT, solutions d'installation et expérimentations technologiques développés sous l'écosystème **KAR**.
+**Site officiel :** https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/
 
-Le Hub permet de retrouver les projets depuis un seul endroit et de consulter leur état, leur objectif et leur lien lorsqu'une version en ligne est disponible.
+**Dépôt GitHub :** https://github.com/anormadaise2-ops/Karl-David-Projects-Hub
 
 ---
 
-## Projets KAR
+## Table des matières
+
+* [Présentation](#-présentation)
+* [Objectifs](#-objectifs)
+* [Projets](#-projets)
+* [Fonctionnalités](#-fonctionnalités)
+* [Technologies](#-technologies)
+* [Structure du projet](#-structure-du-projet)
+* [Installation locale](#-installation-locale)
+* [Configuration](#-configuration)
+* [Déploiement](#-déploiement-sur-github-pages)
+* [Compatibilité](#-compatibilité)
+* [Sécurité et confidentialité](#-sécurité-et-confidentialité)
+* [État du projet](#-état-du-projet)
+* [Auteur](#-auteur)
+* [Licence](#-licence)
+
+---
+
+## Présentation
+
+KAR Projects Hub est le point d'accès central aux projets de l'écosystème KAR.
+
+L'objectif est de proposer une plateforme claire permettant de découvrir les différentes créations, de consulter leurs descriptions et d'accéder à leurs sites ou dépôts officiels.
+
+Le projet privilégie une expérience utilisateur soignée, une navigation intuitive, des animations fluides et une conception adaptée aux ordinateurs, aux smartphones et aux tablettes.
+
+### Vision
+
+Créer un écosystème de projets cohérent, évolutif et accessible, réunissant développement web, outils PC, sécurité informatique, productivité et expériences interactives.
+
+---
+
+## Objectifs
+
+KAR Projects Hub poursuit plusieurs objectifs :
+
+* Centraliser les projets au sein d'une seule plateforme.
+* Faciliter leur découverte et leur navigation.
+* Présenter les fonctionnalités et les technologies utilisées.
+* Fournir des liens vers les sites et dépôts officiels.
+* Mettre en valeur les projets terminés et ceux en développement.
+* Proposer une interface moderne et accessible.
+* Faire évoluer progressivement l'écosystème KAR.
+
+---
+
+## Projets
+
+Les projets ci-dessous appartiennent à l'écosystème KAR. Leur disponibilité et leur niveau d'avancement peuvent varier.
 
 ### KAR Vault
 
-**KAR Vault** est un projet de coffre-fort numérique développé dans l'écosystème KAR.
+**Catégorie :** Sécurité et gestion des mots de passe.
 
-Le projet est disponible sur GitHub :
+KAR Vault est un projet de coffre-fort numérique destiné à explorer la gestion et la protection des mots de passe.
 
-https://github.com/anormadaise2-ops/KAR-Vault
-
-Projet :
-
-* Authentification
-* Gestion de compte
-* Coffre-fort numérique
-* Sécurité
-* Stockage chiffré côté client dans les premières versions
-* Interface web
-* Architecture prévue pour évoluer vers un backend sécurisé
-
----
-
-### KAR Installer
-
-KAR Installer est une plateforme destinée à centraliser et présenter des installations et outils logiciels.
-
-GitHub :
-
-https://github.com/anormadaise2-ops/KAR-Installer
-
-Version GitHub Pages :
-
-https://karldavidlabs.github.io/KAR-Installer/
-
----
-
-### KAR OSINT
-
-KAR OSINT est un projet orienté recherche et analyse d'informations publiques.
-
-GitHub :
-
-https://github.com/anormadaise2-ops/KAR-OSINT-complet
-
-Version GitHub Pages :
-
-https://karldavidlabs.github.io/KAR-OSINT-complet/
-
----
+* Site : https://anormadaise2-ops.github.io/KAR-Vault/
+* Dépôt : https://github.com/anormadaise2-ops/KAR-Vault
 
 ### HUBBOOST
 
-HUBBOOST est un projet consacré à l'optimisation et à la gestion d'outils pour PC.
+**Catégorie :** Outils PC et productivité.
 
-GitHub :
+HUBBOOST est un projet consacré aux outils et aux ressources destinés aux utilisateurs de PC. Son développement comprend notamment un catalogue d'outils et des fonctionnalités applicatives.
 
-https://github.com/KarlDavidLabs/HUBBOOST
+* Dépôt : https://github.com/anormadaise2-ops/HUBBOOST
 
-Version GitHub Pages :
+### KAR OSINT
 
-https://karldavidlabs.github.io/HUBBOOST/
+**Catégorie :** Recherche d'informations publiques.
 
----
+KAR OSINT est un projet orienté vers la recherche, l'organisation et l'analyse d'informations accessibles publiquement.
+
+* Dépôt : https://github.com/anormadaise2-ops/KAR-OSINT-complet
+
+Son utilisation doit respecter la vie privée, les autorisations applicables et la législation en vigueur.
+
+### KAR Installer
+
+**Catégorie :** Installation et gestion d'applications.
+
+KAR Installer est un projet consacré à la création d'une expérience d'installation d'applications dans l'écosystème KAR.
+
+* Site : https://anormadaise2-ops.github.io/KAR-Installer/
+* Dépôt : https://github.com/anormadaise2-ops/KAR-Installer
 
 ### KAR Browser
 
-KAR Browser est un concept de navigateur basé sur une interface moderne de navigation avec des fonctions orientées confidentialité, productivité et intégration de services d'intelligence artificielle.
+**Catégorie :** Navigation web.
 
-Le projet fait partie de l'écosystème KAR.
-
----
+KAR Browser est un projet de navigateur web inspiré des interfaces modernes, avec un intérêt particulier pour la confidentialité, les onglets et la personnalisation.
 
 ### KAR Store
 
-KAR Store est un projet de plateforme destinée à présenter et distribuer des applications.
+**Catégorie :** Applications et catalogue logiciel.
 
-Le projet expérimente notamment :
+KAR Store est un projet de plateforme de présentation et de distribution d'applications.
 
-* comptes utilisateurs ;
-* authentification par code ;
-* catégories d'applications ;
-* développeurs ;
-* téléchargements ;
-* API ;
-* système de logs.
+### KAR OS
 
----
+**Catégorie :** Système d'exploitation et environnement informatique.
 
-## KAR Projects Hub
+KAR OS est un concept d'environnement informatique visant à explorer la personnalisation du système, les paramètres de performance et l'expérience utilisateur.
 
-Le portail principal est disponible ici :
+Les fonctionnalités envisagées doivent être distinguées des fonctionnalités effectivement implémentées.
 
-https://karldavidlabs.github.io/Karl-David-Projects-Hub/
-
-Dépôt GitHub :
-
-https://github.com/KarlDavidLabs/Karl-David-Projects-Hub
+> Les liens sont fournis lorsqu'une adresse publique connue est disponible. Aucun lien de démonstration n'est inventé pour les projets dont la publication n'est pas confirmée.
 
 ---
 
-## Organisation
+## Fonctionnalités
 
-Le principe du projet est de centraliser les différents projets KAR :
+Les fonctionnalités de KAR Projects Hub dépendent de la version du site effectivement déployée.
+
+### Interface utilisateur
+
+* Présentation des projets.
+* Navigation entre les différentes sections.
+* Cartes de projets interactives.
+* Liens vers les ressources disponibles.
+* Interface adaptable à différentes tailles d'écran.
+
+### Recherche et filtres
+
+Lorsque ces fonctions sont présentes dans la version déployée, elles permettent de retrouver plus facilement les projets à partir de leur nom, de leur catégorie ou de leur description.
+
+### Expérience visuelle
+
+Le développement peut intégrer :
+
+* Des animations CSS.
+* Des transitions entre les éléments.
+* Des effets visuels interactifs.
+* Des arrière-plans animés.
+* Des expériences 3D avec Three.js.
+* Des micro-interactions.
+* Des préférences d'affichage.
+
+### Personnalisation
+
+Selon les composants disponibles, le site peut proposer :
+
+* Plusieurs thèmes.
+* Des paramètres d'animation.
+* Des commandes audio.
+* Des préférences conservées dans le navigateur.
+
+Les fonctionnalités facultatives doivent rester compatibles avec les navigateurs qui ne prennent pas en charge certaines API.
+
+---
+
+## Technologies
+
+Les technologies utilisées dépendent de la version actuelle du projet.
+
+| Technologie   | Utilisation                                           |
+| ------------- | ----------------------------------------------------- |
+| HTML5         | Structure des pages                                   |
+| CSS3          | Mise en page, responsive design et effets visuels     |
+| JavaScript    | Interactions et logique côté navigateur               |
+| Three.js      | Graphismes 3D et WebGL, si activés                    |
+| Web Audio API | Effets sonores générés dans le navigateur, si activés |
+| Git           | Gestion des versions                                  |
+| GitHub        | Hébergement du code source                            |
+| GitHub Pages  | Publication du site statique                          |
+
+Cette liste décrit les technologies prévues ou pertinentes pour le projet ; elle ne garantit pas que chacune soit présente dans chaque version du code.
+
+---
+
+## Structure du projet
+
+Exemple d'organisation possible :
 
 ```text
-KAR Projects Hub
-│
-├── KAR Installer
-├── KAR OSINT
-├── HUBBOOST
-├── KAR Browser
-├── KAR Store
-└── KAR Vault
+Karl-David-Projects-Hub/
+├── index.html
+├── README.md
+├── favicon.ico
+├── assets/
+│   ├── images/
+│   └── audio/
+├── css/
+│   └── style.css
+├── js/
+│   └── app.js
+├── robots.txt
+└── sitemap.xml
 ```
 
-Chaque projet peut posséder son propre dépôt GitHub et, lorsqu'il est disponible, son propre site GitHub Pages.
+**Important :** cette arborescence est indicative. Elle doit être adaptée aux fichiers réellement présents dans le dépôt.
+
+Si le site utilise un fichier HTML autonome intégrant le CSS et le JavaScript, les dossiers `css/` et `js/` peuvent ne pas être nécessaires.
 
 ---
 
-## Comment retrouver KAR Vault
+## Installation locale
 
-Pour retrouver directement KAR Vault :
+### Prérequis
 
-1. Ouvrir le dépôt GitHub :
+* Un ordinateur sous Windows, macOS ou Linux.
+* Git, facultatif si le dépôt est téléchargé sous forme d'archive.
+* Un navigateur web moderne.
+* Un éditeur de code, par exemple Visual Studio Code.
 
-   https://github.com/anormadaise2-ops/KAR-Vault
+### Méthode 1 : télécharger le projet
 
-2. Consulter le code source du projet.
+1. Ouvre le dépôt GitHub :
+   https://github.com/anormadaise2-ops/Karl-David-Projects-Hub
+2. Clique sur le bouton permettant de télécharger le code.
+3. Extrais l'archive.
+4. Ouvre le dossier du projet.
+5. Lance `index.html` dans un navigateur si la configuration du projet le permet.
 
-3. Consulter le README du dépôt KAR Vault pour connaître son installation et son fonctionnement.
+### Méthode 2 : utiliser Git
 
-4. Depuis KAR Projects Hub, utiliser la carte ou le lien correspondant à **KAR Vault**.
+Dans PowerShell, exécute :
 
----
-
-## Développement
-
-Les projets KAR utilisent différentes technologies selon leur objectif.
-
-Exemples :
-
-* HTML
-* CSS
-* JavaScript
-* Three.js
-* Python
-* Flask
-* Electron
-* SQLite
-* Git
-* GitHub
-* GitHub Pages
-
-Certains projets sont uniquement front-end tandis que d'autres nécessitent un backend.
-
----
-
-## Déploiement GitHub Pages
-
-Pour un projet statique, le principe de déploiement est :
-
-```text
-Projet local
-    ↓
-Git
-    ↓
-GitHub
-    ↓
-GitHub Pages
-    ↓
-Site public
+```powershell
+git clone https://github.com/anormadaise2-ops/Karl-David-Projects-Hub.git
 ```
 
-Exemple :
+Accède ensuite au dossier :
+
+```powershell
+cd Karl-David-Projects-Hub
+```
+
+Ouvre le dossier dans Visual Studio Code si cette commande est disponible :
+
+```powershell
+code .
+```
+
+Pour un projet purement statique, aucun serveur backend n'est nécessaire pour afficher les fonctionnalités qui fonctionnent entièrement dans le navigateur.
+
+Certaines API du navigateur ou certains chargements de ressources peuvent toutefois nécessiter un serveur HTTP local.
+
+---
+
+## Configuration
+
+Avant de modifier le projet, vérifie les points suivants :
+
+1. Le chemin du fichier JavaScript correspond à celui utilisé dans le HTML.
+2. Le favicon référencé existe réellement dans le dépôt.
+3. Les images utilisent des chemins relatifs compatibles avec GitHub Pages.
+4. Les liens des projets pointent vers les bonnes destinations.
+5. Les ressources externes sont accessibles.
+6. Les bibliothèques facultatives ne bloquent pas l'affichage si elles sont indisponibles.
+7. Les préférences du navigateur ne contiennent aucune donnée sensible.
+
+### Exemple de chargement de JavaScript
+
+Si `app.js` se trouve à la racine du dépôt et que le HTML ne charge pas déjà ce fichier :
+
+```html
+<script src="./app.js" defer></script>
+```
+
+Ne charge pas deux fois le même script.
+
+### Exemple de favicon
+
+Si le fichier `favicon.ico` existe à la racine :
+
+```html
+<link rel="icon" href="./favicon.ico">
+```
+
+Le nom et le chemin doivent correspondre exactement au fichier présent dans le dépôt.
+
+---
+
+## Déploiement sur GitHub Pages
+
+KAR Projects Hub est publié à l'adresse suivante :
+
+https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/
+
+### Étapes de déploiement
+
+1. Ouvre le dépôt GitHub.
+2. Vérifie que les fichiers nécessaires sont présents.
+3. Ouvre les paramètres du dépôt.
+4. Accède à la section **Pages**.
+5. Vérifie la source de publication sélectionnée.
+6. Choisis la branche et le dossier correspondant à la structure du projet.
+7. Enregistre les paramètres si une modification est nécessaire.
+8. Attends la fin du déploiement.
+9. Ouvre le site et vérifie son fonctionnement.
+
+### Publication avec Git
+
+Après avoir modifié les fichiers :
 
 ```powershell
 git add .
 git commit -m "Update KAR Projects Hub"
-git push origin main
+git push
 ```
 
-Puis GitHub Pages publie le contenu de la branche configurée.
+Ces commandes supposent que le dépôt local est déjà initialisé, associé au bon dépôt distant et configuré sur la branche appropriée.
+
+### Vérifications après publication
+
+Contrôle notamment :
+
+* Le chargement de la page d'accueil.
+* L'affichage des images.
+* Le fonctionnement du favicon.
+* Les liens des projets.
+* La recherche et les filtres, s'ils existent.
+* Les animations.
+* Le comportement mobile.
+* L'absence d'erreurs importantes dans la console du navigateur.
 
 ---
 
-## SEO
+## Compatibilité
 
-KAR Projects Hub contient notamment :
+Le projet vise les navigateurs modernes prenant en charge les standards web courants.
 
-* une balise `title` ;
-* une meta description ;
-* une URL canonique ;
-* des données structurées JSON-LD ;
-* Open Graph ;
-* Twitter Cards ;
-* `robots.txt` ;
-* `sitemap.xml` ;
-* une structure HTML adaptée aux moteurs de recherche.
+Les fonctionnalités avancées peuvent dépendre de la prise en charge de certaines API.
 
-Ces éléments permettent aux moteurs de recherche de mieux comprendre le contenu du site.
+| Environnement  | Objectif                                    |
+| -------------- | ------------------------------------------- |
+| Windows        | Compatibilité avec les navigateurs modernes |
+| macOS          | Compatibilité avec les navigateurs modernes |
+| Linux          | Compatibilité avec les navigateurs modernes |
+| Android        | Interface responsive                        |
+| iPhone et iPad | Interface responsive                        |
 
-Ils ne garantissent cependant pas une première position dans les résultats de recherche.
+Les performances des effets 3D dépendent notamment du processeur, du GPU, du navigateur et des capacités de l'appareil.
+
+Une solution de remplacement doit être prévue pour les fonctionnalités graphiques facultatives.
+
+---
+
+## Sécurité et confidentialité
+
+KAR Projects Hub est un portail de présentation de projets. Les mesures de sécurité applicables dépendent également des applications auxquelles il renvoie.
+
+Principes recommandés :
+
+* Ne pas intégrer de clés API secrètes dans le JavaScript public.
+* Ne pas stocker de mots de passe dans `localStorage`.
+* Ne pas transmettre de données personnelles sans nécessité.
+* Vérifier les liens et les ressources externes.
+* Éviter l'insertion de contenu HTML non fiable.
+* Utiliser HTTPS pour les services distants.
+* Informer les utilisateurs des éventuelles collectes de données.
+* Respecter les règles applicables à la confidentialité et aux données personnelles.
+
+GitHub Pages héberge des fichiers statiques. Il ne fournit pas, à lui seul, un backend Python, une base de données ou un système d'authentification serveur.
+
+Les fonctionnalités nécessitant ces services doivent être hébergées et sécurisées séparément.
+
+---
+
+## État du projet
+
+KAR Projects Hub est un projet évolutif.
+
+Les fonctionnalités, les technologies et la présentation peuvent évoluer au fil des mises à jour.
+
+Les projets associés peuvent se trouver à différents stades :
+
+* En développement.
+* En test.
+* Disponibles publiquement.
+* En cours d'amélioration.
+
+La présence d'un projet dans ce portail ne signifie pas nécessairement que toutes ses fonctionnalités sont terminées ou disponibles en ligne.
 
 ---
 
@@ -219,29 +392,23 @@ Ils ne garantissent cependant pas une première position dans les résultats de 
 
 **Karl David**
 
-KAR Projects Hub rassemble les différents projets développés dans l'écosystème KAR.
+Créateur de KAR Projects Hub et des projets associés.
 
-GitHub :
+Profil GitHub :
+https://github.com/anormadaise2-ops
 
-https://github.com/KarlDavidLabs
+Les projets sont développés dans une démarche d'apprentissage, d'expérimentation et d'amélioration progressive.
 
 ---
 
 ## Licence
 
-Les conditions d'utilisation, de modification et de redistribution peuvent varier selon chaque projet.
+Aucune licence spécifique n'est déclarée dans ce README.
 
-Consulter le dépôt GitHub correspondant avant de réutiliser le code.
+Avant de réutiliser, modifier ou redistribuer le code, consulte le dépôt pour vérifier si un fichier `LICENSE` existe.
+
+En l'absence de licence, les droits d'auteur restent applicables et la publication du code sur GitHub ne signifie pas automatiquement qu'il est librement réutilisable.
 
 ---
 
-## Statut
-
-Le Hub est un projet évolutif.
-
-De nouveaux projets, nouvelles versions et nouvelles fonctionnalités peuvent être ajoutés au fil du développement.
-
-
-## 🌐 Site officiel
-
-https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/
+**KAR Projects Hub — One creator. Multiple projects. Infinite possibilities.**
