@@ -1,768 +1,1193 @@
-<!DOCTYPE html>
-<html lang="fr" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAR Projects Hub — Ultimate Immersion</title>
-    <meta name="description" content="Centre de contrôle numérique et portfolio des projets de Karl David. Explorez KAR Vault, HUBBOOST, KAR OSINT et plus encore.">
-    
-    <!-- Open Graph / SEO -->
-    <meta property="og:title" content="KAR Projects Hub — Karl David">
-    <meta property="og:description" content="Centre de contrôle numérique et portfolio immersif des projets de Karl David.">
-    <meta property="og:url" content="https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/">
-    <meta property="og:type" content="website">
+<!-- Open Graph / Twitter Card -->
+<meta property="og:title" content="KAR Projects Hub">
+<meta property="og:description" content="Launcher professionnel de projets numériques par Karl David.">
+<meta property="og:url" content="https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/">
+<meta property="og:type" content="website">
 
-    <!-- Styles CSS Avancés & Théluminescents -->
-    <style>
-        :root {
-            --primary: #00f0ff;
-            --primary-rgb: 0, 240, 255;
-            --bg-base: #02040a;
-            --bg-surface: rgba(10, 15, 30, 0.75);
-            --border-color: rgba(0, 240, 255, 0.25);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-glow: rgba(0, 240, 255, 0.35);
-            --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    deepblack: 'var(--background, #070A12)',
+                    surface: 'var(--surface, #0B1220)',
+                    primary: 'var(--primary, #1677FF)',
+                    accent: 'var(--accent, #00D9FF)',
+                    secondary: 'var(--secondary, #153B70)',
+                    muted: 'var(--muted, #A7B3C7)',
+                    karwhite: 'var(--text, #F5F8FF)'
+                },
+                fontFamily: {
+                    sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+                }
+            }
         }
+    }
+</script>
 
-        [data-theme="light"] {
-            --bg-base: #f1f5f9;
-            --bg-surface: rgba(255, 255, 255, 0.85);
-            --border-color: rgba(0, 0, 0, 0.1);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --accent-glow: rgba(0, 100, 255, 0.15);
-        }
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-        [data-theme="cyber"] {
-            --primary: #ff0055;
-            --primary-rgb: 255, 0, 85;
-            --bg-base: #050205;
-            --bg-surface: rgba(25, 5, 15, 0.85);
-            --border-color: rgba(255, 0, 85, 0.4);
-            --accent-glow: rgba(255, 0, 85, 0.5);
-        }
+<style>
+    :root {
+        --background: #070A12;
+        --surface: #0B1220;
+        --primary: #1677FF;
+        --accent: #00D9FF;
+        --secondary: #153B70;
+        --text: #F5F8FF;
+        --muted: #A7B3C7;
+    }
+    body {
+        background-color: var(--background);
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #070A12;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #153B70;
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #1677FF;
+    }
+    #webgl-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        pointer-events: none;
+    }
+    .glass-panel {
+        background: rgba(11, 18, 32, 0.75);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(22, 119, 255, 0.15);
+    }
+    .glass-panel:hover {
+        border-color: rgba(0, 217, 255, 0.4);
+    }
+    @keyframes pulseGlow {
+        0%, 100% { box-shadow: 0 0 15px rgba(22, 119, 255, 0.2); }
+        50% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.4); }
+    }
+    .glow-effect {
+        animation: pulseGlow 4s infinite ease-in-out;
+    }
+    .project-card {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+    }
+    .project-card:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 12px 30px rgba(0, 217, 255, 0.2);
+        border-color: #00D9FF;
+    }
+    /* Cinematic intro overlay */
+    #intro-overlay {
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+</style>
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
 
-        body {
-            background-color: var(--bg-base);
-            color: var(--text-main);
-            font-family: var(--font-main);
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-            transition: background-color 0.4s ease, color 0.4s ease;
-        }
+<!-- Three.js Background Container -->
+<div id="webgl-container"></div>
 
-        /* Overlay d'introduction (Welcome Modal) */
-        #welcomeOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(2, 4, 10, 0.92);
-            backdrop-filter: blur(20px);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
+<!-- Cinematic Intro Overlay -->
+<div id="intro-overlay" class="fixed inset-0 z-50 bg-[#070A12] flex flex-col items-center justify-center p-6 text-center">
+    <div class="relative mb-8">
+        <div class="absolute -inset-4 rounded-full bg-gradient-to-r from-primary to-accent opacity-30 blur-xl animate-pulse"></div>
+        <div class="relative w-24 h-24 rounded-2xl bg-surface border-2 border-accent flex items-center justify-center shadow-2xl glow-effect">
+            <svg class="w-12 h-12 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+        </div>
+    </div>
+    <h1 class="text-4xl md:text-6xl font-extrabold tracking-wider bg-gradient-to-r from-karwhite via-accent to-primary bg-clip-text text-transparent mb-3">
+        KAR PROJECTS HUB
+    </h1>
+    <p class="text-muted text-lg md:text-xl italic mb-8 max-w-xl">
+        « One creator. Multiple projects. One universe. »
+    </p>
+    <div class="flex flex-col sm:flex-row gap-4">
+        <button id="btn-enter" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold shadow-lg hover:opacity-90 transition transform hover:scale-105 flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            Entrer dans le Hub
+        </button>
+        <button id="btn-skip-intro" class="px-6 py-3.5 rounded-xl glass-panel text-muted hover:text-karwhite transition">
+            Passer l'animation
+        </button>
+    </div>
+    <p class="absolute bottom-6 text-xs text-muted/60">By Appia · Karl David</p>
+</div>
 
-        #welcomeOverlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .welcome-card {
-            background: var(--bg-surface);
-            border: 2px solid var(--primary);
-            box-shadow: 0 0 40px var(--accent-glow);
-            padding: 2.5rem;
-            border-radius: 16px;
-            text-align: center;
-            max-width: 450px;
-            width: 90%;
-        }
-
-        .welcome-card h2 {
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
-            color: var(--primary);
-        }
-
-        .welcome-card p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .welcome-card input {
-            width: 100%;
-            padding: 0.85rem 1rem;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-main);
-            font-size: 1rem;
-            margin-bottom: 1.2rem;
-            text-align: center;
-            outline: none;
-        }
-
-        .welcome-card input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--accent-glow);
-        }
-
-        /* Arrière-plan 3D Canvas */
-        #threeContainer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        /* Mode VR / Cyber Immersion Overlay */
-        body.vr-mode {
-            transform: scale(0.98);
-            filter: contrast(1.15) brightness(1.1);
-        }
-        body.vr-mode::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.85) 100%);
-            pointer-events: none;
-            z-index: 999;
-        }
-
-        /* Navigation HUD */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 2.5rem;
-            background: var(--bg-surface);
-            backdrop-filter: blur(15px);
-            border-bottom: 1px solid var(--border-color);
-            z-index: 1000;
-        }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: var(--text-main);
-            font-weight: 800;
-            font-size: 1.3rem;
-            letter-spacing: 0.05em;
-        }
-
-        .logo-container span {
-            color: var(--primary);
-            text-shadow: 0 0 12px var(--accent-glow);
-        }
-
-        nav ul {
-            display: flex;
-            list-style: none;
-            gap: 2rem;
-            align-items: center;
-        }
-
-        nav a {
-            text-decoration: none;
-            color: var(--text-muted);
-            font-weight: 500;
-            transition: color 0.2s ease;
-        }
-
-        nav a:hover {
-            color: var(--primary);
-        }
-
-        .nav-actions {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        .btn-icon {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 0.55rem 0.85rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: all 0.25s ease;
-        }
-
-        .btn-icon:hover {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--accent-glow);
-            transform: translateY(-1px);
-        }
-
-        /* Main Container */
-        main {
-            max-width: 1300px;
-            margin: 0 auto;
-            padding: 8rem 2rem 5rem 2rem;
-        }
-
-        /* Hero Section */
-        .hero {
-            text-align: center;
-            padding: 4rem 0;
-            position: relative;
-        }
-
-        .user-welcome-tag {
-            display: inline-block;
-            padding: 0.3rem 1rem;
-            background: rgba(0, 240, 255, 0.08);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            color: var(--primary);
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-
-        .hero h1 {
-            font-size: clamp(2.5rem, 5vw, 4.5rem);
-            font-weight: 900;
-            margin-bottom: 1rem;
-            letter-spacing: -0.02em;
-        }
-
-        .hero h1 span {
-            color: var(--primary);
-            text-shadow: 0 0 25px var(--accent-glow);
-        }
-
-        .hero p {
-            color: var(--text-muted);
-            font-size: 1.2rem;
-            max-width: 650px;
-            margin: 0 auto 2.5rem auto;
-            line-height: 1.6;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: #02040a;
-            font-weight: 700;
-            padding: 0.85rem 1.75rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            text-decoration: none;
-            box-shadow: 0 0 20px var(--accent-glow);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 0 30px var(--accent-glow);
-        }
-
-        /* Contrôles & Filtres */
-        .controls-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 4rem 0 2rem 0;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            position: relative;
-            flex: 1;
-            min-width: 280px;
-        }
-
-        .search-box input {
-            width: 100%;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            padding: 0.85rem 1rem 0.85rem 2.75rem;
-            border-radius: 8px;
-            color: var(--text-main);
-            outline: none;
-            transition: border-color 0.2s ease;
-        }
-
-        .search-box input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px var(--accent-glow);
-        }
-
-        .search-box svg {
-            position: absolute;
-            left: 0.85rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            width: 18px;
-            height: 18px;
-        }
-
-        .filters-group {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .filter-btn {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            padding: 0.6rem 1.1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s ease;
-        }
-
-        .filter-btn.active, .filter-btn:hover {
-            background: var(--primary);
-            color: #02040a;
-            border-color: var(--primary);
-            font-weight: 700;
-        }
-
-        /* Grille des Projets */
-        .projects-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 1.75rem;
-        }
-
-        .project-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            backdrop-filter: blur(12px);
-            transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .project-card:hover {
-            transform: translateY(-6px);
-            border-color: var(--primary);
-            box-shadow: 0 12px 35px var(--accent-glow);
-        }
-
-        .project-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-
-        .project-title {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
-        .project-badge {
-            font-size: 0.75rem;
-            padding: 0.3rem 0.6rem;
-            border-radius: 4px;
-            background: rgba(0, 240, 255, 0.1);
-            color: var(--primary);
-            border: 1px solid var(--border-color);
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-
-        .project-desc {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-            flex-grow: 1;
-        }
-
-        .project-footer {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        .btn-card {
-            flex: 1;
-            text-align: center;
-            padding: 0.6rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            border: 1px solid var(--border-color);
-            background: rgba(255, 255, 255, 0.02);
-            color: var(--text-main);
-            transition: all 0.2s ease;
-        }
-
-        .btn-card.primary {
-            background: var(--primary);
-            color: #02040a;
-            border-color: var(--primary);
-            font-weight: 700;
-        }
-
-        .btn-card:hover {
-            opacity: 0.9;
-            box-shadow: 0 0 12px var(--accent-glow);
-        }
-
-        /* Panneau de Paramètres (Drawer) */
-        .settings-drawer {
-            position: fixed;
-            top: 0;
-            right: -420px;
-            width: 400px;
-            height: 100vh;
-            background: var(--bg-base);
-            border-left: 1px solid var(--border-color);
-            box-shadow: -15px 0 40px rgba(0,0,0,0.6);
-            z-index: 2000;
-            transition: right 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
-            display: flex;
-            flex-direction: column;
-            padding: 2.5rem;
-            overflow-y: auto;
-        }
-
-        .settings-drawer.open {
-            right: 0;
-        }
-
-        .settings-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-        }
-
-        .settings-section {
-            margin-bottom: 1.75rem;
-        }
-
-        .settings-section h3 {
-            font-size: 1rem;
-            margin-bottom: 0.75rem;
-            color: var(--primary);
-        }
-
-        .color-picker-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .color-dot {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: transform 0.2s;
-        }
-
-        .color-dot:hover {
-            transform: scale(1.15);
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            nav ul { display: none; }
-            .hero h1 { font-size: 2.2rem; }
-            .settings-drawer { width: 100%; right: -100%; }
-        }
-    </style>
-
-    <!-- Inclusion de Three.js pour le fond 3D Avancé -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-</head>
-<body>
-
-    <!-- Overlay de Bienvenue / Saisie du Nom -->
-    <div id="welcomeOverlay">
-        <div class="welcome-card">
-            <h2>KAR PROJECTS HUB</h2>
-            <p>Initialisation du système. Veuillez entrer votre identifiant opérateur :</p>
-            <input type="text" id="operatorNameInput" placeholder="Ex: Karl David ou Invité" autofocus>
-            <button class="btn-primary" id="enterSystemBtn" style="width: 100%;">Accéder au Hub</button>
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-40 glass-panel border-b border-primary/20 px-4 lg:px-8 py-3.5 flex items-center justify-between backdrop-blur-md">
+    <div class="flex items-center gap-3">
+        <button id="mobile-menu-toggle" class="lg:hidden p-2 text-muted hover:text-karwhite focus:outline-none" aria-label="Menu">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="flex items-center gap-2 cursor-pointer" onclick="switchSection('home')">
+            <div class="w-9 h-9 rounded-lg bg-primary/20 border border-primary flex items-center justify-center text-accent font-bold text-lg shadow-inner">
+                K
+            </div>
+            <div>
+                <span class="font-bold tracking-wider text-karwhite text-lg">KAR</span>
+                <span class="text-xs text-accent block font-mono">PROJECTS HUB</span>
+            </div>
         </div>
     </div>
 
-    <!-- Arrière-plan 3D -->
-    <div id="threeContainer"></div>
+    <!-- Desktop Navigation Links -->
+    <nav class="hidden lg:flex items-center gap-1 bg-surface/80 p-1.5 rounded-xl border border-primary/10">
+        <button onclick="switchSection('home')" class="nav-link px-4 py-1.5 rounded-lg text-sm font-medium transition text-karwhite bg-primary/20" data-target="home">Accueil</button>
+        <button onclick="switchSection('projects')" class="nav-link px-4 py-1.5 rounded-lg text-sm font-medium transition text-muted hover:text-karwhite" data-target="projects">Projets</button>
+        <button onclick="switchSection('forum')" class="nav-link px-4 py-1.5 rounded-lg text-sm font-medium transition text-muted hover:text-karwhite" data-target="forum">Forum</button>
+        <button onclick="switchSection('creator')" class="nav-link px-4 py-1.5 rounded-lg text-sm font-medium transition text-muted hover:text-karwhite" data-target="creator">Créateur</button>
+    </nav>
 
-    <!-- En-tête de Navigation -->
-    <header>
-        <a href="#" class="logo-container">
-            KAR <span>Projects Hub</span>
-        </a>
-        <nav>
-            <ul>
-                <li><a href="#projects">Projets</a></li>
-                <li><a href="https://github.com/anormadaise2-ops" target="_blank" rel="noopener">GitHub</a></li>
-            </ul>
-        </nav>
-        <div class="nav-actions">
-            <button class="btn-icon" id="vrToggle" onclick="toggleVRMode()" title="Basculer le mode Immersion VR">🥽 VR</button>
-            <button class="btn-icon" id="muteToggle" aria-label="Activer/Couper le son" data-action="toggle-mute">🔇 Audio</button>
-            <button class="btn-icon" id="settingsToggle" aria-label="Paramètres" data-action="toggle-settings">⚙️ Paramètres</button>
-        </div>
-    </header>
+    <!-- Right Quick Actions -->
+    <div class="flex items-center gap-3">
+        <!-- Audio Indicator & Toggle -->
+        <button id="btn-audio-toggle" class="p-2.5 rounded-xl glass-panel text-muted hover:text-accent transition relative group" title="Activer / Couper le son" aria-label="Audio">
+            <svg id="icon-sound-on" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+            <svg id="icon-sound-off" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+        </button>
+        
+        <!-- Speech Presentation Button -->
+        <button id="btn-speech-toggle" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl glass-panel text-xs text-muted hover:text-karwhite transition" title="Présentation vocale">
+            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
+            <span>Écouter</span>
+        </button>
 
-    <!-- Contenu Principal -->
-    <main>
-        <!-- Section Hero -->
-        <section class="hero">
-            <div class="user-welcome-tag" id="operatorDisplayTag">Opérateur : Invité</div>
-            <h1>Centre de Contrôle <span>KAR Hub</span></h1>
-            <p>Plateforme immersive de pointe regroupant les outils, applications et coffres-forts numériques de <strong>Karl David</strong>.</p>
-            <div class="hero-buttons">
-                <a href="#projects" class="btn-primary">Explorer les Projets</a>
-                <button class="btn-icon" id="startTour" data-action="start-tour">✨ Visite Guidée</button>
-            </div>
-        </section>
+        <!-- Settings Button -->
+        <button onclick="openModal('settings-modal')" class="p-2.5 rounded-xl glass-panel text-muted hover:text-karwhite transition" title="Paramètres" aria-label="Paramètres">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+    </div>
+</header>
 
-        <!-- Contrôles et Filtres -->
-        <section id="projects">
-            <div class="controls-section">
-                <div class="search-box">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input type="text" id="projectSearch" placeholder="Rechercher un projet, une techno..." aria-label="Recherche de projets">
-                </div>
-                <div class="filters-group" role="group" aria-label="Filtres de projets">
-                    <button class="filter-btn active" data-filter="all">Tous</button>
-                    <button class="filter-btn" data-filter="vault">Vault / Sécurité</button>
-                    <button class="filter-btn" data-filter="tools">Outils & Système</button>
-                    <button class="filter-btn" data-filter="web">Web / Apps</button>
-                </div>
-            </div>
+<!-- Main Layout with Sidebar -->
+<div class="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto p-4 lg:p-6 gap-6">
+    
+    <!-- Sidebar Launcher Navigation -->
+    <aside id="sidebar" class="w-full lg:w-64 glass-panel rounded-2xl p-4 flex flex-col gap-2 shrink-0 h-fit lg:sticky lg:top-24 hidden lg:flex">
+        <div class="text-xs font-mono uppercase text-muted tracking-wider px-3 mb-1">Navigation</div>
+        <button onclick="switchSection('home')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-karwhite bg-primary/20 border border-primary/30" data-cat="home">
+            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Accueil Hub
+        </button>
+        <button onclick="filterCategory('all')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="all">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Tous les projets
+        </button>
 
-            <!-- Grille des Vrais Projets -->
-            <div class="projects-grid">
-                
-                <!-- KAR Vault -->
-                <div class="project-card" data-category="vault security" data-tags="vault security kar">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">KAR Vault</h3>
-                            <span class="project-badge">Sécurité</span>
-                        </div>
-                        <p class="project-desc">Coffre-fort numérique hautement sécurisé pour la gestion et la protection de données sensibles.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/KAR-Vault" target="_blank" rel="noopener" class="btn-card">GitHub</a>
-                        <a href="https://anormadaise2-ops.github.io/KAR-Vault/" target="_blank" rel="noopener" class="btn-card primary">Ouvrir</a>
-                    </div>
-                </div>
+        <div class="text-xs font-mono uppercase text-muted tracking-wider px-3 mt-4 mb-1">Catégories</div>
+        <button onclick="filterCategory('Web')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="Web">
+            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+            Applications Web
+        </button>
+        <button onclick="filterCategory('Sécurité')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="Sécurité">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Sécurité
+        </button>
+        <button onclick="filterCategory('Outils PC')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="Outils PC">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            Outils PC
+        </button>
+        <button onclick="filterCategory('OSINT')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="OSINT">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            OSINT
+        </button>
+        <button onclick="filterCategory('Installateurs')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="Installateurs">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Installateurs
+        </button>
+        <button onclick="filterCategory('Expériences')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="Expériences">
+            <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+            Expériences
+        </button>
 
-                <!-- HUBBOOST -->
-                <div class="project-card" data-category="tools optimization" data-tags="hubboost tools pc performance">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">HUBBOOST</h3>
-                            <span class="project-badge">Outils PC</span>
-                        </div>
-                        <p class="project-desc">Plateforme consacrée aux utilitaires d'optimisation et d'amélioration des performances système.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/HUBBOOST" target="_blank" rel="noopener" class="btn-card primary">GitHub</a>
-                    </div>
-                </div>
-
-                <!-- KAR Browser -->
-                <div class="project-card" data-category="web tools" data-tags="browser web tool">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">KAR Browser</h3>
-                            <span class="project-badge">Web / Outil</span>
-                        </div>
-                        <p class="project-desc">Application de navigation web et exploration d'outils connectés intégrés.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Détails</a>
-                    </div>
-                </div>
-
-                <!-- KAR Store -->
-                <div class="project-card" data-category="web" data-tags="store shop web">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">KAR Store</h3>
-                            <span class="project-badge">Boutique</span>
-                        </div>
-                        <p class="project-desc">Interface de catalogue et présentation de modules applicatifs et composants.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Voir</a>
-                    </div>
-                </div>
-
-                <!-- KAR OS -->
-                <div class="project-card" data-category="tools" data-tags="os system concept">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">KAR OS</h3>
-                            <span class="project-badge">Concept / OS</span>
-                        </div>
-                        <p class="project-desc">Prototype et concept d'interface de système d'exploitation numérique orienté cloud.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Explorer</a>
-                    </div>
-                </div>
-
-                <!-- KAR OSINT -->
-                <div class="project-card" data-category="vault security" data-tags="osint security tools">
-                    <div>
-                        <div class="project-header">
-                            <h3 class="project-title">KAR OSINT</h3>
-                            <span class="project-badge">Sécurité</span>
-                        </div>
-                        <p class="project-desc">Outils d'investigation, d'analyse et de recherche d'informations en sources ouvertes.</p>
-                    </div>
-                    <div class="project-footer">
-                        <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener" class="btn-card primary">Accéder</a>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-    </main>
-
-    <!-- Panneau de Paramètres (Drawer) -->
-    <aside id="settingsPanel" class="settings-drawer" aria-hidden="true">
-        <div class="settings-header">
-            <h2>Paramètres & Préférences</h2>
-            <button class="btn-icon" id="closeSettings" data-action="close-settings">✕</button>
-        </div>
-
-        <div class="settings-section">
-            <h3>Couleur d'Accentuation</h3>
-            <div class="color-picker-grid">
-                <div class="color-dot" style="background: #00f0ff;" onclick="setAccentColor('#00f0ff')"></div>
-                <div class="color-dot" style="background: #38bdf8;" onclick="setAccentColor('#38bdf8')"></div>
-                <div class="color-dot" style="background: #a855f7;" onclick="setAccentColor('#a855f7')"></div>
-                <div class="color-dot" style="background: #ff0055;" onclick="setAccentColor('#ff0055')"></div>
-                <div class="color-dot" style="background: #10b981;" onclick="setAccentColor('#10b981')"></div>
-                <div class="color-dot" style="background: #f59e0b;" onclick="setAccentColor('#f59e0b')"></div>
-            </div>
-        </div>
-
-        <div class="settings-section">
-            <h3>Thème Visuel</h3>
-            <button class="btn-icon" data-theme-toggle style="width: 100%; justify-content: center;">Changer de Thème</button>
-        </div>
-
-        <div class="settings-section">
-            <h3>Volume Audio (Musique de fond)</h3>
-            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.3" data-action="set-volume" style="width: 100%;">
-        </div>
+        <div class="text-xs font-mono uppercase text-muted tracking-wider px-3 mt-4 mb-1">Communauté & Info</div>
+        <button onclick="switchSection('forum')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="forum">
+            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+            Forum local
+        </button>
+        <button onclick="switchSection('creator')" class="sidebar-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-muted hover:text-karwhite hover:bg-surface" data-cat="creator">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            À propos du créateur
+        </button>
     </aside>
 
-    <!-- Fichier audio de fond -->
-    <audio id="bgAudio" src="assets/audio/background.mp3" preload="auto" loop></audio>
+    <!-- Dynamic Main Content Area -->
+    <main class="flex-1 flex flex-col gap-6">
 
-    <!-- Script JavaScript Principal & Logique de Welcome/VR -->
-    <script src="app.js" defer></script>
-    <script>
-        // Gestion de la modale de bienvenue et de l'opérateur
-        document.addEventListener('DOMContentLoaded', () => {
-            const overlay = document.getElementById('welcomeOverlay');
-            const nameInput = document.getElementById('operatorNameInput');
-            const enterBtn = document.getElementById('enterSystemBtn');
-            const operatorTag = document.getElementById('operatorDisplayTag');
+        <!-- SECTION: HOME / DASHBOARD -->
+        <section id="section-home" class="space-y-6">
+            <!-- Welcome Banner -->
+            <div class="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden border border-primary/30">
+                <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="px-3 py-1 rounded-full bg-primary/20 text-accent font-mono text-xs border border-primary/30 inline-block mb-3">VERSION LAUNCHER 2.0</span>
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-karwhite mb-3">Bienvenue sur KAR Projects Hub</h2>
+                    <p class="text-muted leading-relaxed mb-6">
+                        Plateforme centralisée et launcher numérique pour explorer les créations logicielles, outils de sécurité et applications de Karl David.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <button onclick="switchSection('projects')" class="px-6 py-3 rounded-xl bg-primary hover:bg-primary/80 text-white font-semibold transition flex items-center gap-2 shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                            Explorer la bibliothèque
+                        </button>
+                        <button onclick="switchSection('creator')" class="px-6 py-3 rounded-xl glass-panel text-karwhite hover:bg-surface/80 transition flex items-center gap-2">
+                            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            Découvrir le créateur
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-            const savedName = localStorage.getItem('kar_hub_operator');
-            if (savedName) {
-                operatorTag.textContent = `Opérateur : ${savedName}`;
-                overlay.classList.add('hidden');
-            }
+            <!-- Featured Project Hero Card -->
+            <div id="featured-project-container">
+                <!-- Dynamic Featured Card rendered via JS -->
+            </div>
 
-            const handleLogin = () => {
-                const name = nameInput.value.trim() || 'Karl David';
-                localStorage.setItem('kar_hub_operator', name);
-                operatorTag.textContent = `Opérateur : ${name}`;
-                overlay.classList.add('hidden');
+            <!-- Quick Stats / Highlights -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass-panel p-4 rounded-2xl text-center">
+                    <div class="text-2xl md:text-3xl font-extrabold text-accent mb-1" id="stat-total-projects">5+</div>
+                    <div class="text-xs text-muted uppercase font-mono">Projets actifs</div>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl text-center">
+                    <div class="text-2xl md:text-3xl font-extrabold text-primary mb-1">GitHub</div>
+                    <div class="text-xs text-muted uppercase font-mono">Sources ouvertes</div>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl text-center">
+                    <div class="text-2xl md:text-3xl font-extrabold text-emerald-400 mb-1">100%</div>
+                    <div class="text-xs text-muted uppercase font-mono">Statique & Rapide</div>
+                </div>
+                <div class="glass-panel p-4 rounded-2xl text-center">
+                    <div class="text-2xl md:text-3xl font-extrabold text-purple-400 mb-1">WebGL</div>
+                    <div class="text-xs text-muted uppercase font-mono">Expérience 3D</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: PROJECTS LIBRARY -->
+        <section id="section-projects" class="space-y-6 hidden">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-karwhite">Bibliothèque de projets</h2>
+                    <p class="text-muted text-sm">Explorez, filtrez et accédez à l'ensemble des dépôts et applications.</p>
+                </div>
+                <!-- Search & Sort Controls -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="relative flex-1 md:w-64">
+                        <input type="text" id="project-search" placeholder="Rechercher un projet..." class="w-full bg-surface border border-primary/20 rounded-xl px-4 py-2.5 pl-10 text-sm text-karwhite focus:outline-none focus:border-accent transition">
+                        <svg class="w-4 h-4 text-muted absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <select id="project-sort" class="bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent transition">
+                        <option value="default">Tri par défaut</option>
+                        <option value="alpha">Alphabétique (A-Z)</option>
+                        <option value="recent">Récemment ajoutés</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Category Filter Pills -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                <button onclick="filterCategory('all')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition bg-primary text-white" data-filter="all">Tous</button>
+                <button onclick="filterCategory('Web')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="Web">Web</button>
+                <button onclick="filterCategory('Sécurité')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="Sécurité">Sécurité</button>
+                <button onclick="filterCategory('Outils PC')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="Outils PC">Outils PC</button>
+                <button onclick="filterCategory('OSINT')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="OSINT">OSINT</button>
+                <button onclick="filterCategory('Installateurs')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="Installateurs">Installateurs</button>
+                <button onclick="filterCategory('Expériences')" class="filter-pill px-4 py-1.5 rounded-full text-xs font-medium transition glass-panel text-muted hover:text-karwhite" data-filter="Expériences">Expériences</button>
+            </div>
+
+            <!-- Projects Grid -->
+            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Rendered dynamically -->
+            </div>
+
+            <!-- No Results State -->
+            <div id="no-results" class="hidden text-center py-12 glass-panel rounded-2xl">
+                <svg class="w-12 h-12 text-muted mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h3 class="text-lg font-bold text-karwhite mb-1">Aucun projet trouvé</h3>
+                <p class="text-muted text-sm mb-4">Essayez de modifier vos critères de recherche ou filtres.</p>
+                <button onclick="resetFilters()" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold">Effacer les filtres</button>
+            </div>
+        </section>
+
+        <!-- SECTION: FORUM -->
+        <section id="section-forum" class="space-y-6 hidden">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-karwhite">Forum de démonstration KAR</h2>
+                    <p class="text-muted text-sm">Discussions, suggestions et entraide technique (enregistré localement).</p>
+                </div>
+                <button onclick="openModal('new-discussion-modal')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold text-sm flex items-center gap-2 shadow-lg hover:opacity-95 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Nouvelle discussion
+                </button>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border border-accent/20 bg-surface/40 text-xs text-muted flex items-start gap-3">
+                <svg class="w-5 h-5 text-accent shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p><strong>Notice :</strong> Forum de démonstration : les publications sont enregistrées localement dans ce navigateur. Elles ne sont pas visibles par les autres visiteurs.</p>
+            </div>
+
+            <!-- Forum Search & Categories -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="forum-search" placeholder="Rechercher dans le forum..." class="flex-1 bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent">
+                <select id="forum-cat-filter" class="bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent">
+                    <option value="all">Toutes les catégories</option>
+                    <option value="Général">Général</option>
+                    <option value="KAR Vault">KAR Vault</option>
+                    <option value="HUBBOOST">HUBBOOST</option>
+                    <option value="KAR OSINT">KAR OSINT</option>
+                    <option value="KAR Browser">KAR Browser</option>
+                    <option value="KAR OS">KAR OS</option>
+                    <option value="Aide technique">Aide technique</option>
+                    <option value="Suggestions">Suggestions</option>
+                </select>
+            </div>
+
+            <!-- Discussions List Container -->
+            <div id="discussions-list" class="space-y-4">
+                <!-- Rendered dynamically -->
+            </div>
+        </section>
+
+        <!-- SECTION: CREATOR / ABOUT -->
+        <section id="section-creator" class="space-y-6 hidden">
+            <div class="glass-panel rounded-3xl p-6 md:p-10 relative overflow-hidden border border-primary/30">
+                <div class="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                    <div class="relative shrink-0">
+                        <div class="absolute -inset-2 rounded-2xl bg-gradient-to-r from-primary to-accent opacity-50 blur-lg animate-pulse"></div>
+                        <img src="assets/302650.jpg" alt="Karl David" class="relative w-40 h-40 md:w-48 md:h-48 rounded-2xl object-cover border-2 border-accent shadow-2xl">
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <span class="px-3 py-1 rounded-full bg-primary/20 text-accent font-mono text-xs border border-primary/30 inline-block mb-3">CRÉATEUR & DÉVELOPPEUR</span>
+                        <h2 class="text-3xl font-bold text-karwhite mb-2">Karl David</h2>
+                        <p class="text-muted leading-relaxed mb-6">
+                            Passionné de développement logiciel, d'architecture front-end et d'outils de sécurité avancés. Concepteur de l'écosystère KAR Projects Hub, KAR Vault et d'outils d'optimisation PC.
+                        </p>
+                        <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                            <a href="https://github.com/anormadaise2-ops" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-xl bg-surface border border-primary/30 text-karwhite hover:bg-primary/20 transition flex items-center gap-2 text-sm font-semibold">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                                GitHub officiel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Presentation Player Section -->
+            <div class="glass-panel p-6 rounded-3xl border border-primary/20 space-y-4">
+                <h3 class="text-xl font-bold text-karwhite flex items-center gap-2">
+                    <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                    Enregistrement audio officiel
+                </h3>
+                <p class="text-muted text-sm">Écoutez la présentation audio intégrée du projet (fichier source officiel).</p>
+                <div class="flex items-center gap-4 bg-surface p-4 rounded-2xl border border-primary/10">
+                    <button id="btn-play-record" class="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary/80 transition">
+                        <svg id="icon-play-rec" class="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-karwhite">Record (mp3cut.net).mp3</div>
+                        <div class="text-xs text-muted" id="record-time">Audio original du créateur</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Footer -->
+<footer class="mt-auto py-6 border-t border-primary/10 text-center text-xs text-muted space-y-2">
+    <p>KAR Projects Hub · By Appia · Karl David</p>
+    <p>
+        <a href="https://github.com/anormadaise2-ops/Karl-David-Projects-Hub" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Dépôt GitHub</a> · 
+        <a href="https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/" class="text-accent hover:underline">Site Officiel</a>
+    </p>
+</footer>
+
+<!-- MODAL: PROJECT DETAILS -->
+<div id="project-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 md:p-8 border border-accent/40 relative max-h-[90vh] overflow-y-auto">
+        <button onclick="closeModal('project-modal')" class="absolute top-6 right-6 p-2 rounded-full glass-panel text-muted hover:text-karwhite">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <div id="modal-project-content" class="space-y-4">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NEW DISCUSSION -->
+<div id="new-discussion-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-lg rounded-3xl p-6 border border-primary/40 relative">
+        <button onclick="closeModal('new-discussion-modal')" class="absolute top-6 right-6 p-2 rounded-full glass-panel text-muted hover:text-karwhite">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <h3 class="text-xl font-bold text-karwhite mb-4">Créer une discussion</h3>
+        <form id="form-new-discussion" onsubmit="handleCreateDiscussion(event)" class="space-y-4">
+            <div>
+                <label class="block text-xs font-mono uppercase text-muted mb-1">Votre nom / pseudo</label>
+                <input type="text" id="disc-author" required maxlength="50" class="w-full bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent" placeholder="Ex: Développeur KAR">
+            </div>
+            <div>
+                <label class="block text-xs font-mono uppercase text-muted mb-1">Catégorie</label>
+                <select id="disc-category" class="w-full bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent">
+                    <option value="Général">Général</option>
+                    <option value="KAR Vault">KAR Vault</option>
+                    <option value="HUBBOOST">HUBBOOST</option>
+                    <option value="KAR OSINT">KAR OSINT</option>
+                    <option value="KAR Browser">KAR Browser</option>
+                    <option value="KAR OS">KAR OS</option>
+                    <option value="Aide technique">Aide technique</option>
+                    <option value="Suggestions">Suggestions</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-mono uppercase text-muted mb-1">Titre de la discussion</label>
+                <input type="text" id="disc-title" required maxlength="100" class="w-full bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent" placeholder="Sujet principal...">
+            </div>
+            <div>
+                <label class="block text-xs font-mono uppercase text-muted mb-1">Contenu / Message</label>
+                <textarea id="disc-content" required rows="4" maxlength="1000" class="w-full bg-surface border border-primary/20 rounded-xl px-4 py-2.5 text-sm text-karwhite focus:outline-none focus:border-accent resize-none" placeholder="Décrivez votre sujet..."></textarea>
+            </div>
+            <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold shadow-lg hover:opacity-95 transition">
+                Publier la discussion
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SETTINGS -->
+<div id="settings-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-lg rounded-3xl p-6 md:p-8 border border-primary/40 relative max-h-[90vh] overflow-y-auto">
+        <button onclick="closeModal('settings-modal')" class="absolute top-6 right-6 p-2 rounded-full glass-panel text-muted hover:text-karwhite">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <h3 class="text-xl font-bold text-karwhite mb-6">Paramètres utilisateur</h3>
+        
+        <div class="space-y-6">
+            <!-- Audio settings -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-mono uppercase text-accent tracking-wider">Audio & Ambiance</h4>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-karwhite">Musique d'ambiance (background.mp3)</span>
+                    <input type="checkbox" id="setting-bg-music" onchange="updateSettings()" class="w-5 h-5 accent-primary cursor-pointer">
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-karwhite">Effets sonores (UI clicks & hovers)</span>
+                    <input type="checkbox" id="setting-sfx" onchange="updateSettings()" class="w-5 h-5 accent-primary cursor-pointer" checked>
+                </div>
+            </div>
+
+            <!-- 3D Settings -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-mono uppercase text-accent tracking-wider">Affichage & 3D</h4>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-karwhite">Activer le fond 3D (Three.js WebGL)</span>
+                    <input type="checkbox" id="setting-3d" onchange="updateSettings()" class="w-5 h-5 accent-primary cursor-pointer" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-karwhite">Réduire les animations (Performance / Accessibilité)</span>
+                    <input type="checkbox" id="setting-reduced-motion" onchange="updateSettings()" class="w-5 h-5 accent-primary cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Local Data management -->
+            <div class="space-y-3 pt-4 border-t border-primary/10">
+                <h4 class="text-xs font-mono uppercase text-red-400 tracking-wider">Données locales</h4>
+                <button onclick="clearLocalStorageData()" class="w-full py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 font-semibold text-sm hover:bg-red-500/30 transition">
+                    Effacer les publications du forum local
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast Container -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+<!-- JavaScript Application Logic -->
+<script>
+    // --- DATA CATALOGUE ---
+    const projectsData = [
+        {
+            id: 'kar-projects-hub',
+            name: 'KAR Projects Hub',
+            category: 'Web',
+            description: 'Site central de présentation des projets et launcher numérique de Karl David.',
+            fullDescription: 'KAR Projects Hub est le point central de navigation regroupant l’ensemble des applications, outils de sécurité et expérimentations créés par Karl David. Conçu avec une interface immersive inspirée des launchers gaming professionnels.',
+            status: 'Actif & En ligne',
+            statusColor: 'text-emerald-400',
+            techs: ['HTML5', 'CSS3', 'JavaScript', 'Tailwind', 'Three.js'],
+            github: 'https://github.com/anormadaise2-ops/Karl-David-Projects-Hub',
+            site: 'https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/',
+            featured: true,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-vault',
+            name: 'KAR Vault',
+            category: 'Sécurité',
+            description: 'Projet de coffre-fort numérique et de gestion sécurisée de mots de passe.',
+            fullDescription: 'KAR Vault est une application de sécurisation de données sensibles et de gestion de mots de passe avec chiffrement et ergonomie moderne.',
+            status: 'En ligne',
+            statusColor: 'text-emerald-400',
+            techs: ['JavaScript', 'Crypto API', 'Tailwind'],
+            github: 'https://github.com/anormadaise2-ops/KAR-Vault',
+            site: 'https://anormadaise2-ops.github.io/KAR-Vault/',
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'hubboost',
+            name: 'HUBBOOST',
+            category: 'Outils PC',
+            description: 'Projet consacré aux outils d’optimisation et aux fonctionnalités PC.',
+            fullDescription: 'HUBBOOST propose des utilitaires avancés pour l’optimisation système sous Windows et la gestion des performances des ordinateurs.',
+            status: 'Code source disponible',
+            statusColor: 'text-blue-400',
+            techs: ['Python', 'PowerShell', 'Windows API'],
+            github: 'https://github.com/anormadaise2-ops/HUBBOOST',
+            site: null,
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-osint',
+            name: 'KAR OSINT',
+            category: 'OSINT',
+            description: 'Projet d’analyse et de recherche d’informations accessibles publiquement.',
+            fullDescription: 'KAR OSINT regroupe des scripts et des interfaces d’investigation en sources ouvertes pour l’analyse de données publiques.',
+            status: 'Code source disponible',
+            statusColor: 'text-amber-400',
+            techs: ['Python', 'OSINT', 'APIs'],
+            github: 'https://github.com/anormadaise2-ops/KAR-OSINT-complet',
+            site: null,
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-installer',
+            name: 'KAR Installer',
+            category: 'Installateurs',
+            description: 'Projet d’installation et de gestion d’applications.',
+            fullDescription: 'KAR Installer facilite le déploiement et la mise à jour automatisée des logiciels de l’écosystème KAR.',
+            status: 'Actif & En ligne',
+            statusColor: 'text-emerald-400',
+            techs: ['JavaScript', 'HTML5', 'Desktop Integration'],
+            github: 'https://github.com/anormadaise2-ops/KAR-Installer',
+            site: 'https://anormadaise2-ops.github.io/KAR-Installer/',
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-browser',
+            name: 'KAR Browser',
+            category: 'Expériences',
+            description: 'Projet futur de navigateur Web sécurisé intégré à l’écosystème.',
+            fullDescription: 'Projet en cours de préparation pour intégrer des fonctionnalités de navigation ultra-rapide et sécurisée.',
+            status: 'En développement',
+            statusColor: 'text-purple-400',
+            techs: ['Electron', 'Web Engine'],
+            github: 'https://github.com/anormadaise2-ops',
+            site: null,
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-store',
+            name: 'KAR Store',
+            category: 'Web',
+            description: 'Magasin d’applications centralisé pour les outils KAR.',
+            fullDescription: 'Plateforme future de distribution de logiciels et de modules complémentaires.',
+            status: 'Prochainement',
+            statusColor: 'text-muted',
+            techs: ['Web', 'API Statique'],
+            github: 'https://github.com/anormadaise2-ops',
+            site: null,
+            featured: false,
+            image: 'assets/302650.jpg'
+        },
+        {
+            id: 'kar-os',
+            name: 'KAR OS',
+            category: 'Expériences',
+            description: 'Expérience d’interface de système d’exploitation virtuel dans le navigateur.',
+            fullDescription: 'Environnement de bureau virtuel simulant un OS complet aux couleurs de l’univers KAR.',
+            status: 'Expérimental',
+            statusColor: 'text-pink-400',
+            techs: ['HTML5', 'Canvas', 'JS Core'],
+            github: 'https://github.com/anormadaise2-ops',
+            site: null,
+            featured: false,
+            image: 'assets/302650.jpg'
+        }
+    ];
+
+    // --- AUDIO MANAGER ---
+    class AudioManager {
+        constructor() {
+            this.enabled = false;
+            this.sfxEnabled = true;
+            this.bgAudio = new Audio('assets/audio/background.mp3');
+            this.bgAudio.loop = true;
+            this.bgAudio.volume = 0.3;
+            
+            this.sounds = {
+                boot: new Audio('assets/audio/boot.mp3'),
+                click: new Audio('assets/audio/click.mp3'),
+                hover: new Audio('assets/audio/hover.mp3'),
+                open: new Audio('assets/audio/open.mp3'),
+                transition: new Audio('assets/audio/transition.mp3'),
+                whoosh: new Audio('assets/audio/whoosh.mp3'),
+                toggle: new Audio('assets/audio/toogle.mp3'),
+                chord: new Audio('assets/audio/chord.mp3'),
+                fx: new Audio('assets/audio/fx.mp3'),
+                record: new Audio('assets/audio/Record (mp3cut.net).mp3')
             };
 
-            enterBtn.addEventListener('click', handleLogin);
-            nameInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') handleLogin();
-            });
+            Object.values(this.sounds).forEach(snd => snd.volume = 0.4);
+        }
+
+        toggleAudio() {
+            this.enabled = !this.enabled;
+            const iconOn = document.getElementById('icon-sound-on');
+            const iconOff = document.getElementById('icon-sound-off');
+            
+            if (this.enabled) {
+                iconOn.classList.remove('hidden');
+                iconOff.classList.add('hidden');
+                this.bgAudio.play().catch(e => console.log('Autoplay prevented', e));
+                showToast('Mode audio activé', 'success');
+            } else {
+                iconOn.classList.add('hidden');
+                iconOff.classList.remove('hidden');
+                this.bgAudio.pause();
+                showToast('Mode silencieux activé', 'info');
+            }
+            return this.enabled;
+        }
+
+        playSfx(name) {
+            if (!this.enabled || !this.sfxEnabled) return;
+            const snd = this.sounds[name];
+            if (snd) {
+                snd.currentTime = 0;
+                snd.play().catch(e => {});
+            }
+        }
+    }
+
+    const audioMgr = new AudioManager();
+
+    // --- THREE.JS BACKGROUND ---
+    let scene, camera, renderer, particlesMesh;
+    let animationEnabled = true;
+
+    function initThreeJS() {
+        const container = document.getElementById('webgl-container');
+        if (!container) return;
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // Create particle field
+        const particlesCount = 700;
+        const posArray = new Float32Array(particlesCount * 3);
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 15;
+        }
+
+        const particlesGeo = new THREE.BufferGeometry();
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.035,
+            color: 0x00D9FF,
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending
         });
 
-        // Mode VR / Immersion totale
-        function toggleVRMode() {
-            document.body.classList.toggle('vr-mode');
-            const isVr = document.body.classList.contains('vr-mode');
-            localStorage.setItem('kar_hub_vr', isVr);
+        particlesMesh = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particlesMesh);
+
+        camera.position.z = 5;
+
+        // Mouse interaction
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) - 0.5;
+            mouseY = (e.clientY / window.innerHeight) - 0.5;
+        });
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!animationEnabled) return;
+
+            const elapsedTime = clock.getElapsedTime();
+            particlesMesh.rotation.y = elapsedTime * 0.03 + mouseX * 0.3;
+            particlesMesh.rotation.x = elapsedTime * 0.01 + mouseY * 0.3;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    // --- NAVIGATION & UI STATE ---
+    let currentFilter = 'all';
+
+    function switchSection(sectionId) {
+        audioMgr.playSfx('transition');
+        document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+        const targetSec = document.getElementById(`section-${sectionId}`);
+        if (targetSec) targetSec.classList.remove('hidden');
+
+        // Update sidebar & top navigation active state
+        document.querySelectorAll('.sidebar-btn').forEach(btn => {
+            btn.classList.remove('bg-primary/20', 'border', 'border-primary/35', 'text-karwhite');
+            btn.classList.add('text-muted');
+            if(btn.dataset.cat === sectionId || (sectionId === 'projects' && btn.dataset.cat === 'all')) {
+                btn.classList.add('bg-primary/20', 'border', 'border-primary/35', 'text-karwhite');
+                btn.classList.remove('text-muted');
+            }
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function filterCategory(cat) {
+        audioMgr.playSfx('click');
+        currentFilter = cat;
+        switchSection('projects');
+
+        // Update filter pills
+        document.querySelectorAll('.filter-pill').forEach(pill => {
+            pill.classList.remove('bg-primary', 'text-white');
+            pill.classList.add('glass-panel', 'text-muted');
+            if(pill.dataset.filter === cat) {
+                pill.classList.add('bg-primary', 'text-white');
+                pill.classList.remove('glass-panel', 'text-muted');
+            }
+        });
+
+        renderProjects();
+    }
+
+    function resetFilters() {
+        document.getElementById('project-search').value = '';
+        document.getElementById('project-sort').value = 'default';
+        filterCategory('all');
+    }
+
+    // --- RENDER PROJECTS ---
+    function renderProjects() {
+        const grid = document.getElementById('projects-grid');
+        const noResults = document.getElementById('no-results');
+        const searchQuery = document.getElementById('project-search').value.toLowerCase();
+        const sortVal = document.getElementById('project-sort').value;
+
+        let filtered = projectsData.filter(p => {
+            const matchesCat = (currentFilter === 'all' || p.category === currentFilter);
+            const matchesSearch = p.name.toLowerCase().includes(searchQuery) || 
+                                  p.description.toLowerCase().includes(searchQuery) ||
+                                  p.techs.some(t => t.toLowerCase().includes(searchQuery));
+            return matchesCat && matchesSearch;
+        });
+
+        if (sortVal === 'alpha') {
+            filtered.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortVal === 'recent') {
+            filtered.reverse();
         }
 
-        if (localStorage.getItem('kar_hub_vr') === 'true') {
-            document.body.classList.add('vr-mode');
+        grid.innerHTML = '';
+        if (filtered.length === 0) {
+            noResults.classList.remove('hidden');
+            return;
+        }
+        noResults.classList.add('hidden');
+
+        filtered.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'project-card glass-panel rounded-2xl p-5 flex flex-col justify-between border border-primary/20 cursor-pointer group relative overflow-hidden';
+            card.onclick = () => openProjectModal(p.id);
+            card.onmouseenter = () => audioMgr.playSfx('hover');
+
+            let actionBtnHtml = '';
+            if (p.site) {
+                actionBtnHtml = `<a href="${p.site}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/80 text-white text-xs font-semibold flex items-center gap-1.5 transition">Ouvrir</a>`;
+            } else {
+                actionBtnHtml = `<a href="${p.github}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="px-4 py-2 rounded-xl bg-surface border border-primary/30 text-karwhite text-xs font-semibold flex items-center gap-1.5 transition hover:bg-primary/20">GitHub</a>`;
+            }
+
+            card.innerHTML = `
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="px-2.5 py-0.5 rounded-full bg-primary/20 text-accent font-mono text-[10px] border border-primary/30">${p.category}</span>
+                        <span class="text-xs font-semibold ${p.statusColor}">${p.status}</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-karwhite mb-2 group-hover:text-accent transition">${p.name}</h3>
+                    <p class="text-muted text-xs leading-relaxed mb-4 line-clamp-2">${p.description}</p>
+                </div>
+                <div>
+                    <div class="flex flex-wrap gap-1.5 mb-4">
+                        ${p.techs.map(t => `<span class="px-2 py-0.5 rounded bg-surface/80 text-muted font-mono text-[10px] border border-primary/10">${t}</span>`).join('')}
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-primary/10">
+                        <span class="text-xs text-muted flex items-center gap-1">Détails <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                        ${actionBtnHtml}
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function renderFeaturedProject() {
+        const container = document.getElementById('featured-project-container');
+        const featured = projectsData.find(p => p.featured) || projectsData[0];
+
+        container.innerHTML = `
+            <div class="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden border border-accent/40 flex flex-col md:flex-row items-center gap-6">
+                <div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 pointer-events-none"></div>
+                <div class="flex-1 relative z-10">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2.5 py-0.5 rounded-full bg-accent/20 text-accent font-mono text-xs border border-accent/30">PROJET VEDETTE</span>
+                        <span class="text-xs font-semibold text-emerald-400">${featured.status}</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-karwhite mb-2">${featured.name}</h3>
+                    <p class="text-muted text-sm leading-relaxed mb-6">${featured.fullDescription}</p>
+                    <div class="flex flex-wrap gap-3">
+                        ${featured.site ? `<a href="${featured.site}" target="_blank" rel="noopener noreferrer" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-white text-sm font-semibold flex items-center gap-2 transition shadow-lg">Lancer le projet</a>` : ''}
+                        <a href="${featured.github}" target="_blank" rel="noopener noreferrer" class="px-6 py-2.5 rounded-xl glass-panel text-karwhite text-sm font-semibold flex items-center gap-2 transition hover:bg-surface/80">Code source GitHub</a>
+                    </div>
+                </div>
+                <div class="w-full md:w-72 h-44 rounded-2xl overflow-hidden relative border border-accent/30 shrink-0">
+                    <img src="${featured.image}" alt="${featured.name}" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#070A12] via-transparent to-transparent opacity-60"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- PROJECT MODAL ---
+    function openProjectModal(projectId) {
+        audioMgr.playSfx('open');
+        const project = projectsData.find(p => p.id === projectId);
+        if (!project) return;
+
+        const content = document.getElementById('modal-project-content');
+        content.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-3 py-1 rounded-full bg-primary/20 text-accent font-mono text-xs border border-primary/30">${project.category}</span>
+                <span class="text-xs font-semibold ${project.statusColor}">${project.status}</span>
+            </div>
+            <h3 class="text-2xl font-bold text-karwhite mb-3">${project.name}</h3>
+            <p class="text-muted leading-relaxed mb-4">${project.fullDescription}</p>
+            <div class="space-y-2 mb-6">
+                <h4 class="text-xs font-mono uppercase text-accent tracking-wider">Technologies utilisées</h4>
+                <div class="flex flex-wrap gap-2">
+                    ${project.techs.map(t => `<span class="px-2.5 py-1 rounded-lg bg-surface text-karwhite font-mono text-xs border border-primary/20">${t}</span>`).join('')}
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3 pt-4 border-t border-primary/10">
+                ${project.site ? `<a href="${project.site}" target="_blank" rel="noopener noreferrer" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-white text-sm font-semibold flex items-center gap-2 transition shadow-lg">Ouvrir le site en ligne</a>` : '<span class="text-xs text-muted py-2">Aucune version Web publique confirmée</span>'}
+                <a href="${project.github}" target="_blank" rel="noopener noreferrer" class="px-6 py-2.5 rounded-xl glass-panel text-karwhite text-sm font-semibold flex items-center gap-2 transition hover:bg-surface/80">Consulter sur GitHub</a>
+            </div>
+        `;
+        document.getElementById('project-modal').classList.remove('hidden');
+        document.getElementById('project-modal').classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // --- FORUM DEMO SYSTEM ---
+    let forumDiscussions = JSON.parse(localStorage.getItem('kar_forum_discs')) || [
+        {
+            id: 1,
+            author: 'Karl David',
+            category: 'Général',
+            title: 'Bienvenue sur le forum de démonstration KAR Projects Hub !',
+            content: 'Discutez ici des projets, proposez des améliorations et partagez vos retours.',
+            date: '09/10/2026',
+            replies: 3
+        },
+        {
+            id: 2,
+            author: 'SecOps_User',
+            category: 'KAR Vault',
+            title: 'Suggestion de chiffrement pour KAR Vault',
+            content: 'Serait-il possible d’ajouter une option d’export chiffré des clés de sauvegarde ?',
+            date: '08/10/2026',
+            replies: 1
+        }
+    ];
+
+    function renderForum() {
+        const list = document.getElementById('discussions-list');
+        const search = document.getElementById('forum-search').value.toLowerCase();
+        const catFilter = document.getElementById('forum-cat-filter').value;
+
+        let filtered = forumDiscussions.filter(d => {
+            const matchCat = (catFilter === 'all' || d.category === catFilter);
+            const matchSearch = d.title.toLowerCase().includes(search) || d.content.toLowerCase().includes(search) || d.author.toLowerCase().includes(search);
+            return matchCat && matchSearch;
+        });
+
+        list.innerHTML = '';
+        if (filtered.length === 0) {
+            list.innerHTML = `<div class="glass-panel p-8 text-center rounded-2xl text-muted text-sm">Aucune discussion trouvée.</div>`;
+            return;
         }
 
-        // Gestion de la couleur d'accentuation
-        function setAccentColor(colorHex) {
-            document.documentElement.style.setProperty('--primary', colorHex);
-            localStorage.setItem('kar_hub_accent', colorHex);
+        filtered.forEach(d => {
+            const item = document.createElement('div');
+            item.className = 'glass-panel p-5 rounded-2xl border border-primary/20 space-y-3';
+            item.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full bg-primary/20 text-accent font-mono text-[10px] border border-primary/30">${d.category}</span>
+                        <span class="text-xs text-muted">Par <strong class="text-karwhite">${escapeHtml(d.author)}</strong> le ${d.date}</span>
+                    </div>
+                    <button onclick="deleteDiscussion(${d.id})" class="text-muted hover:text-red-400 text-xs transition" title="Supprimer">Supprimer</button>
+                </div>
+                <h3 class="text-base font-bold text-karwhite">${escapeHtml(d.title)}</h3>
+                <p class="text-muted text-xs leading-relaxed">${escapeHtml(d.content)}</p>
+                <div class="flex items-center justify-between pt-2 border-t border-primary/10 text-xs text-muted">
+                    <span>${d.replies} réponse(s)</span>
+                    <button onclick="showToast('Fonctionnalité de réponse rapide connectée au stockage local.', 'info')" class="text-accent hover:underline">Répondre</button>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    function handleCreateDiscussion(e) {
+        e.preventDefault();
+        const author = document.getElementById('disc-author').value.trim();
+        const category = document.getElementById('disc-category').value;
+        const title = document.getElementById('disc-title').value.trim();
+        const content = document.getElementById('disc-content').value.trim();
+
+        if (!author || !title || !content) return;
+
+        const newDisc = {
+            id: Date.now(),
+            author,
+            category,
+            title,
+            content,
+            date: new Date().toLocaleDateString('fr-FR'),
+            replies: 0
+        };
+
+        forumDiscussions.unshift(newDisc);
+        localStorage.setItem('kar_forum_discs', JSON.stringify(forumDiscussions));
+        closeModal('new-discussion-modal');
+        document.getElementById('form-new-discussion').reset();
+        renderForum();
+        showToast('Discussion publiée avec succès !', 'success');
+    }
+
+    function deleteDiscussion(id) {
+        if (confirm('Voulez-vous vraiment supprimer cette publication locale ?')) {
+            forumDiscussions = forumDiscussions.filter(d => d.id !== id);
+            localStorage.setItem('kar_forum_discs', JSON.stringify(forumDiscussions));
+            renderForum();
+            showToast('Discussion supprimée.', 'info');
         }
-        const savedAccent = localStorage.getItem('kar_hub_accent');
-        if (savedAccent) {
-            document.documentElement.style.setProperty('--primary', savedAccent);
+    }
+
+    function clearLocalStorageData() {
+        if (confirm('Êtes-vous sûr de vouloir effacer toutes les publications du forum local ?')) {
+            localStorage.removeItem('kar_forum_discs');
+            forumDiscussions = [];
+            renderForum();
+            showToast('Données locales effacées.', 'info');
         }
-    </script>
-</body>
-</html>
+    }
+
+    // --- SPEECH SYNTHESIS ---
+    function toggleSpeech() {
+        if (!('speechSynthesis' in window)) {
+            showToast('Synthèse vocale non prise en charge par ce navigateur.', 'error');
+            return;
+        }
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+            showToast('Présentation vocale arrêtée.', 'info');
+            return;
+        }
+
+        const text = "Bienvenue sur KAR Projects Hub, le centre de découverte des projets de Karl David. Explore les projets, consulte leur code source et découvre l'univers KAR.";
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'fr-FR';
+        utterance.rate = 1.0;
+        
+        utterance.onstart = () => showToast('Présentation vocale en cours...', 'info');
+        utterance.onerror = () => showToast('Erreur lors de la lecture vocale.', 'error');
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // --- TOAST NOTIFICATIONS ---
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        let borderColor = 'border-primary/40';
+        if (type === 'success') borderColor = 'border-emerald-500/40';
+        if (type === 'error') borderColor = 'border-red-500/40';
+
+        toast.className = `glass-panel px-4 py-3 rounded-2xl border ${borderColor} text-xs text-karwhite shadow-xl pointer-events-auto flex items-center gap-3 animate-fade-in`;
+        toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+        
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400);
+        }, 3500);
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // --- MODAL UTILS ---
+    function openModal(modalId) {
+        audioMgr.playSfx('open');
+        const m = document.getElementById(modalId);
+        if (m) {
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeModal(modalId) {
+        audioMgr.playSfx('click');
+        const m = document.getElementById(modalId);
+        if (m) {
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('[id$="-modal"]').forEach(m => {
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+            });
+            document.body.style.overflow = '';
+        }
+    });
+
+    // --- SETTINGS SYNC ---
+    function updateSettings() {
+        audioMgr.sfxEnabled = document.getElementById('setting-sfx').checked;
+        const bgMusicSetting = document.getElementById('setting-bg-music').checked;
+        if (bgMusicSetting !== audioMgr.enabled) {
+            audioMgr.toggleAudio();
+        }
+        animationEnabled = document.getElementById('setting-3d').checked;
+        const container = document.getElementById('webgl-container');
+        if (container) container.style.display = animationEnabled ? 'block' : 'none';
+
+        if (document.getElementById('setting-reduced-motion').checked) {
+            animationEnabled = false;
+        }
+        showToast('Paramètres mis à jour.', 'success');
+    }
+
+    // --- INIT APP ---
+    window.addEventListener('DOMContentLoaded', () => {
+        initThreeJS();
+        renderProjects();
+        renderFeaturedProject();
+        renderForum();
+
+        // Intro overlay transition
+        const enterBtn = document.getElementById('btn-enter');
+        const skipBtn = document.getElementById('btn-skip-intro');
+        const introOverlay = document.getElementById('intro-overlay');
+
+        function dismissIntro() {
+            audioMgr.playSfx('boot');
+            introOverlay.style.opacity = '0';
+            setTimeout(() => introOverlay.remove(), 800);
+            showToast('Bienvenue sur KAR Projects Hub', 'success');
+        }
+
+        enterBtn.onclick = dismissIntro;
+        skipBtn.onclick = dismissIntro;
+
+        // Audio toggle button
+        document.getElementById('btn-audio-toggle').onclick = () => {
+            audioMgr.toggleAudio();
+            document.getElementById('setting-bg-music').checked = audioMgr.enabled;
+        };
+
+        // Speech button
+        document.getElementById('btn-speech-toggle').onclick = toggleSpeech;
+
+        // Audio record button
+        let recordPlaying = false;
+        document.getElementById('btn-play-record').onclick = () => {
+            const recAudio = audioMgr.sounds.record;
+            if (!recordPlaying) {
+                recAudio.play().then(() => {
+                    recordPlaying = true;
+                    document.getElementById('icon-play-rec').innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                    showToast('Lecture de l’enregistrement officiel...', 'info');
+                }).catch(e => showToast('Impossible de lire le fichier audio.', 'error'));
+                recAudio.onended = () => {
+                    recordPlaying = false;
+                    document.getElementById('icon-play-rec').innerHTML = '<path d="M8 5v14l11-7z"/>';
+                };
+            } else {
+                recAudio.pause();
+                recAudio.currentTime = 0;
+                recordPlaying = false;
+                document.getElementById('icon-play-rec').innerHTML = '<path d="M8 5v14l11-7z"/>';
+            }
+        };
+
+        // Search & sort event listeners
+        document.getElementById('project-search').oninput = renderProjects;
+        document.getElementById('project-sort').onchange = renderProjects;
+        document.getElementById('forum-search').oninput = renderForum;
+        document.getElementById('forum-cat-filter').onchange = renderForum;
+    });
+</script>
