@@ -1,12 +1,71 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 
+                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <!-- Page d'accueil principale -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
 
-<url>
-    <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
-    <lastmod>2026-10-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-</url>
+    <!-- KAR Vault -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/KAR-Vault/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.9</priority>
+    </url>
+
+    <!-- HUBBOOST -->
+    <url>
+        <loc>https://github.com/anormadaise2-ops/HUBBOOST</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <!-- KAR Browser -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <!-- KAR Store -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <!-- KAR OS -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <!-- KAR OSINT -->
+    <url>
+        <loc>https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <!-- Profil GitHub Global -->
+    <url>
+        <loc>https://github.com/anormadaise2-ops</loc>
+        <lastmod>2026-10-09</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+    </url>
 
 </urlset>
