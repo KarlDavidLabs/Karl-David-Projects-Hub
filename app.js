@@ -1,6 +1,6 @@
 ﻿/**
  * ============================================================================
- * KAR PROJECTS HUB — app.js (Production Ready)
+ * KAR PROJECTS HUB — app.js (Production Ready & Optimized)
  * Creator: Karl David
  * Repository: https://github.com/anormadaise2-ops/Karl-David-Projects-Hub
  * URL: https://anormadaise2-ops.github.io/Karl-David-Projects-Hub/
@@ -15,8 +15,6 @@
         storagePrefix: 'kar_hub_',
         defaultTheme: 'dark',
         defaultVolume: 0.3,
-        audioEnabled: false,
-        ambientEnabled: false,
         reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
     };
 
@@ -26,9 +24,7 @@
         audioInitialized: false,
         audioContext: null,
         masterGain: null,
-        ambientOscillator: null,
         soundEnabled: false,
-        isMuted: false,
         volume: CONFIG.defaultVolume,
         activeFilters: new Set(['all']),
         searchQuery: '',
@@ -97,7 +93,6 @@
         const savedTheme = Storage.get('theme', CONFIG.defaultTheme);
         setTheme(savedTheme, false);
 
-        // Connexion des boutons / sélecteurs de thème s'ils existent
         const themeToggles = document.querySelectorAll('[data-theme-toggle], .theme-selector, #themeToggle');
         themeToggles.forEach(toggle => {
             toggle.addEventListener('click', () => {
@@ -146,13 +141,12 @@
             volumeSlider.addEventListener('input', (e) => {
                 state.volume = parseFloat(e.target.value);
                 Storage.set('volume', state.volume);
-                if (state.masterGain) {
+                if (state.masterGain && state.audioContext) {
                     state.masterGain.gain.setValueAtTime(state.volume, state.audioContext.currentTime);
                 }
             });
         }
 
-        // Activation globale après premier geste utilisateur (conformité autoplay)
         const unlockAudio = () => {
             if (!state.audioInitialized) {
                 initWebAudio();
@@ -218,29 +212,28 @@
      * 3. Navigation et Défilement Fluide
      */
     function initNavigation() {
-        const navLinks = document.querySelectorAll('a[href^="#"]');
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                const targetId = link.getAttribute('href');
-                if (targetId === '#') return;
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    e.preventDefault();
-                    targetElement.scrollIntoView({
-                        behavior: CONFIG.reducedMotion ? 'auto' : 'smooth'
-                    });
-                    playSound('click');
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#"]');
+            if (!link) return;
 
-                    // Fermeture du menu mobile si ouvert
-                    const mobileNav = document.querySelector('.mobile-nav, nav.active, .nav-menu.open');
-                    if (mobileNav) {
-                        mobileNav.classList.remove('active', 'open');
-                    }
+            const targetId = link.getAttribute('href');
+            if (targetId === '#') return;
+
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                e.preventDefault();
+                targetElement.scrollIntoView({
+                    behavior: CONFIG.reducedMotion ? 'auto' : 'smooth'
+                });
+                playSound('click');
+
+                const mobileNav = document.querySelector('.mobile-nav, nav.active, .nav-menu.open');
+                if (mobileNav) {
+                    mobileNav.classList.remove('active', 'open');
                 }
-            });
+            }
         });
 
-        // Bouton Retour en haut
         const scrollTopBtn = document.querySelector('#scrollTop, .scroll-top-btn');
         if (scrollTopBtn) {
             window.addEventListener('scroll', () => {
@@ -258,15 +251,19 @@
     }
 
     /**
-     * 4. Recherche de Projets
+     * 4. Recherche de Projets avec Debounce
      */
     function initProjectSearch() {
         const searchInput = document.querySelector('#projectSearch, input[name="search"], .search-input');
         if (!searchInput) return;
 
+        let debounceTimer;
         searchInput.addEventListener('input', (e) => {
-            state.searchQuery = e.target.value.trim().toLowerCase();
-            filterProjects();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                state.searchQuery = e.target.value.trim().toLowerCase();
+                filterProjects();
+            }, 200);
         });
     }
 
@@ -337,7 +334,6 @@
             }
         });
 
-        // Mise à jour d'un compteur de résultats éventuel
         const countDisplay = document.querySelector('#resultCount, .result-counter');
         if (countDisplay) {
             countDisplay.textContent = visibleCount;
@@ -345,12 +341,11 @@
     }
 
     /**
-     * 6. Cartes de Projets Interactives
+     * 6. Cartes de Projets Interactives (Délégation d'événements)
      */
     function initProjectCards() {
         const cards = document.querySelectorAll('.project-card, .card');
         cards.forEach(card => {
-            // Effet d'élévation au survol si non réduit
             if (!CONFIG.reducedMotion) {
                 card.addEventListener('mousemove', (e) => {
                     const rect = card.getBoundingClientRect();
@@ -368,21 +363,23 @@
                     card.style.transform = 'translateY(0px) rotateX(0deg) rotateY(0deg)';
                 });
             }
+        });
 
-            // Bouton de copie de lien ou autre micro-interaction
-            const copyBtn = card.querySelector('.copy-link, [data-action="copy"]');
-            if (copyBtn) {
-                copyBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const link = card.querySelector('a')?.href || window.location.href;
-                    navigator.clipboard.writeText(link).then(() => {
-                        playSound('success');
-                        const originalText = copyBtn.textContent;
-                        copyBtn.textContent = 'Copié !';
-                        setTimeout(() => copyBtn.textContent = originalText, 2000);
-                    });
-                });
-            }
+        // Gestion centralisée de la copie de lien
+        document.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('.copy-link, [data-action="copy"]');
+            if (!copyBtn) return;
+
+            e.preventDefault();
+            const card = copyBtn.closest('.project-card, .card');
+            const link = card?.querySelector('a')?.href || window.location.href;
+
+            navigator.clipboard.writeText(link).then(() => {
+                playSound('success');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copié !';
+                setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+            });
         });
     }
 
@@ -414,7 +411,7 @@
     }
 
     /**
-     * 8. Arrière-plan 3D Immersif (Three.js Optionnel)
+     * 8. Arrière-plan 3D Immersif (Three.js)
      */
     function initThreeBackground() {
         const container = document.querySelector('#threeContainer, #canvas-background, .three-bg');
@@ -431,17 +428,20 @@
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.domElement.style.position = 'absolute';
-            renderer.domElement.style.top = '0';
-            renderer.domElement.style.left = '0';
-            renderer.domElement.style.width = '100%';
-            renderer.domElement.style.height = '100%';
-            renderer.domElement.style.pointerEvents = 'none';
-            renderer.domElement.style.zIndex = '-1';
+            
+            Object.assign(renderer.domElement.style, {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: '-1'
+            });
+
             container.appendChild(renderer.domElement);
             state.threeRenderer = renderer;
 
-            // Création d'un champ de particules futuriste
             const particlesCount = 800;
             const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(particlesCount * 3);
@@ -463,8 +463,7 @@
             scene.add(particles);
             state.particlesMesh = particles;
 
-            // Animation Loop
-            let clock = new THREE.Clock();
+            const clock = new THREE.Clock();
             const animate = () => {
                 state.threeAnimationId = requestAnimationFrame(animate);
                 const elapsedTime = clock.getElapsedTime();
@@ -478,7 +477,6 @@
             };
             animate();
 
-            // Gestion du redimensionnement
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
@@ -491,16 +489,14 @@
     }
 
     /**
-     * 9. Motion Design et Effets Visuels
+     * 9. Motion Design et Effets Visuels (Parallaxe)
      */
     function initMotionEffects() {
-        // Suivi léger de souris pour éléments décoratifs (Parallaxe)
         if (CONFIG.reducedMotion) return;
 
-        let mouseX = 0, mouseY = 0;
         window.addEventListener('mousemove', (e) => {
-            mouseX = (e.clientX / window.innerWidth - 0.5) * 20;
-            mouseY = (e.clientY / window.innerHeight - 0.5) * 20;
+            const mouseX = (e.clientX / window.innerWidth - 0.5) * 20;
+            const mouseY = (e.clientY / window.innerHeight - 0.5) * 20;
 
             const parallaxLayers = document.querySelectorAll('.parallax-layer');
             parallaxLayers.forEach(layer => {
@@ -570,8 +566,7 @@
         }
 
         const current = steps[state.guidedTourStep];
-        // Affichage simple d'une modale ou notification du guide
-        alert(`${current.title}\n\n${current.text}`);
+        window.alert(`${current.title}\n\n${current.text}`);
         state.guidedTourStep++;
         if (state.guidedTourActive) {
             runTourStep();
@@ -582,7 +577,6 @@
      * 12. Accessibilité
      */
     function initAccessibility() {
-        // Amélioration de la navigation au clavier
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.querySelector('.settings-modal.open, .modal.open');
@@ -597,7 +591,6 @@
      * 13. Optimisations de Performance & Gestion Visibilité
      */
     function initPerformanceOptimizations() {
-        // Pause de l'animation 3D si l'onglet est masqué
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 if (state.threeAnimationId) {
